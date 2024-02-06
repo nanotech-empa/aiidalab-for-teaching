@@ -1,14 +1,14 @@
 # aiidalab-for-teaching
 ## Local deployment
-To build the container locally run teh following command:
+To build the container locally run the following command:
 
 ```bash
 docker build -t aiidalab/teaching .
 ```
 
-Once the container is built you can create a new profile with aiidalab-launch:
+Once the container is built, you can create a new profile with aiidalab-launch:
 ```bash
-aiidalab-lauche profile add teaching
+aiidalab-launch profile add teaching
 ```
 with the following content:
 ```
@@ -21,11 +21,11 @@ extra_mounts = []
 ```
 
 ### Clean-up:
-first remove the container:
+First, remove the container:
 ```bash
 docker rm <container_id>
 ```
-also remove the mounted volume
+Also, remove the mounted volume:
 ```bash
 docker volume rm aiidalab_teaching_home
 ```
