@@ -8,6 +8,8 @@ USER ${NB_USER}
 
 RUN pip install --user aiida-cp2k
 
+RUN pip install --user spglib
+
 COPY configs /home/${NB_USER}/configs
 
 COPY before-notebook.d/* /usr/local/bin/before-notebook.d/
