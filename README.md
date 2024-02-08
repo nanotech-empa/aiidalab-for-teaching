@@ -13,7 +13,7 @@ aiidalab-launch profile add teaching
 with the following content:
 ```
 port = 8891
-default_apps = []
+default_apps = [ "mfa-cscs", "quantum-espresso",]
 system_user = "jovyan"
 image = "aiidalab/teaching"
 home_mount = "aiidalab_teaching_home"
