@@ -4,7 +4,21 @@
 
 Make sure you have [git installed](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git) on your pc
 
-execute in a appropriate directory (e.g. your home folder)
+for windows:
+open power shell and execute:
+```bash
+wsl --install
+```
+open the WSL terminal from the start menu then execute:
+
+```bash
+sudo apt update && sudo apt install python3-pip
+pip install aiidalab-launch start
+```
+close the WSL terminal and re-open it
+make sure you have [WSL 2 running](https://docs.docker.com/desktop/wsl/):
+
+oepn a terminal in your mac/linux (or WSL for windows) and execute in a appropriate directory (e.g. your home folder or the home in the WSL terminal)
 ```bash
 git clone https://github.com/nanotech-empa/aiidalab-for-teaching.git
 ```
@@ -15,25 +29,10 @@ cd aiidalab-for-teaching
 
 Install aiidalab-launch on your pc
 
-mac/linux:
 execute:
 ```bash
 pip install aiidalab-launch
 ```
-
-windows:
-open power shell and execute:
-```bash
-wsl --install
-```
-open the WSL terminal formm the start menu then execute:
-
-```bash
-sudo apt update && sudo apt install python3-pip
-pip install aiidalab-launch start
-```
-close the WSL terminal and re-open it
-
 
 
 ### Make sure Docker desktop is running
@@ -42,7 +41,6 @@ close the WSL terminal and re-open it
 ....
 
 To build the container locally run the following command:
-
 ```bash
 docker build -t aiidalab/teaching .
 ```
@@ -70,7 +68,7 @@ aiidalab-launch start --profile teaching
 aiidalab-launch stop --profile teaching
 ```
 
-### Clean-up:
+### Clean-up (will delete everything):
 First, remove the container:
 ```bash
 docker rm aiidalab_teaching
