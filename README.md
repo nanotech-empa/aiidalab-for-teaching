@@ -27,7 +27,7 @@ enter the aiidalab-for-teaching folder:
 cd aiidalab-for-teaching
 ```
 
-Install aiidalab-launch on your pc
+Install aiidalab-launch on your PC
 
 execute:
 ```bash
