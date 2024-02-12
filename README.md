@@ -1,5 +1,46 @@
 # aiidalab-for-teaching
 ## Local deployment
+[Install docker](https://docs.docker.com/get-docker/) desktop on your pc.
+
+Make sure you have [git installed](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git) on your pc
+
+execute in a appropriate directory (e.g. your home folder)
+```bash
+git clone https://github.com/nanotech-empa/aiidalab-for-teaching.git
+```
+enter the aiidalab-for-teaching folder:
+```bash
+cd aiidalab-for-teaching
+```
+
+Install aiidalab-launch on your pc
+
+mac/linux:
+execute:
+```bash
+pip install aiidalab-launch
+```
+
+windows:
+open power shell and execute:
+```bash
+wsl --install
+```
+open the WSL terminal formm the start menu then execute:
+
+```bash
+sudo apt update && sudo apt install python3-pip
+pip install aiidalab-launch start
+```
+close the WSL terminal and re-open it
+
+
+
+### Make sure Docker desktop is running
+
+### To use a pre-compiled docker image:
+....
+
 To build the container locally run the following command:
 
 ```bash
@@ -20,10 +61,19 @@ home_mount = "aiidalab_teaching_home"
 extra_mounts = []
 ```
 
+### To start aiidalab execute
+```bash
+aiidalab-launch start --profile teaching
+```
+### To stop execute
+```bash
+aiidalab-launch stop --profile teaching
+```
+
 ### Clean-up:
 First, remove the container:
 ```bash
-docker rm <container_id>
+docker rm aiidalab_teaching
 ```
 Also, remove the mounted volume:
 ```bash
