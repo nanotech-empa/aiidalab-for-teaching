@@ -6,8 +6,10 @@ Make sure you have [git installed](https://git-scm.com/book/en/v2/Getting-Starte
 
 for windows:
 open power shell and execute:
+
 ```bash
-wsl --install
+wsl --set-default-version 2
+wsl --install -d ubuntu
 ```
 open the WSL terminal from the start menu then execute:
 
