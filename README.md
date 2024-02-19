@@ -60,10 +60,10 @@ pip install aiidalab-launch
 ```
 
 
-### Get the AiiDAlab for teaching container
+### Get the aiidalab-for-teaching image
 
-At this point you can decide to either build the container locally or to use a pre-compiled image from the GitHub Container Registry (ghcr.io).
-The first option is recommended if you run on a machine with a different architecture than x86_64 (e.g. ARM).
+At this point you can decide to either use a pre-compiled image from the GitHub Container Registry (ghcr.io) or to build the image locally.
+The first latter approach is recommended if you run on a machine with a different architecture than `x86_64` (e.g. ARM).
 
 The following sub-sections require to enter the commands in a terminal (Mac/Linux) or in the Ubuntu WSL terminal (on Windows).
 
@@ -81,8 +81,8 @@ docker pull ghcr.io/nanotech-empa/aiidalab-for-teaching:main
 > docker login ghcr.io -u <github-username>
 > Password: <your-token>
 > ```
-> The access token can be created [here](https://github.com/settings/tokens)
-> Make sure to enable the following permissions:
+> The access token can be created [here](https://github.com/settings/tokens).
+> While creating it, please make sure to enable the following permissions:
 > ```
 > * write:packages
 > * read:packages
@@ -136,15 +136,15 @@ home_mount = "aiidalab_teaching_home"
 extra_mounts = []
 ```
 
-### To start aiidalab execute
+### To start the container execute:
 ```bash
 aiidalab-launch start --profile teaching
 ```
-### To stop execute
+### To stop the container execute:
 ```bash
 aiidalab-launch stop --profile teaching
 ```
-### Clean-up (will delete everything):
+### Clean-up (this will delete everything):
 
 After the container is stopped, you can remove it by running the following command:
 ```bash
