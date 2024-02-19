@@ -62,7 +62,7 @@ The latter approach is recommended if you run on a machine with a different arch
 
 The following sub-sections require to enter the commands in a terminal (Mac/Linux) or in the Ubuntu WSL terminal (on Windows).
 
-#### Pull the pre-compiled image
+#### Option 1: Pull the pre-compiled image
 
 To download the pre-compiled image from the GitHub Container Registry, please run the following command:
 
@@ -91,7 +91,7 @@ docker tag ghcr.io/nanotech-empa/aiidalab-for-teaching:main aiidalab/teaching
 ```
 
 
-#### Build the image locally
+#### Option 2: Build the image locally
 
 First, make sure the Docker Desktop is running.
 Enter a folder where you want to keep the aiidalab-for-teaching repository (`cd /path/to/your/folder`) and run the following command:
