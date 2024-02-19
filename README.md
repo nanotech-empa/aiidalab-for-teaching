@@ -8,13 +8,11 @@ Since the instructions depend on the operating system, please select the appropr
 
 #### Linux/Mac
 
-**Docker**
-
+* **Docker**.
 To install Docker, please follow the instructions available on the Docker website for [Linux](https://docs.docker.com/desktop/install/linux-install/) or [Mac](https://docs.docker.com/desktop/install/mac-install/).
 
 
-**Git**
-
+* **Git**.
 Usually, Git is already installed on Linux and Mac.
 If not, please install it using the package manager of your operating system.
 For instance, on Ubuntu, you can install Git by running the following command:
@@ -27,8 +25,7 @@ On Mac, you can install Git using [Homebrew](https://brew.sh/):
 brew install git
 ```
 
-**Python**
-
+* **Python**.
 Python is also quite often pre-installed on Linux and Mac.
 If this is not the case, we recommend installing Python through Conda the minimal installed named Miniconda.
 The installation instructions are available on the [Conda website](https://docs.conda.io/en/latest/miniconda.html).
@@ -36,31 +33,23 @@ The installation instructions are available on the [Conda website](https://docs.
 
 #### Windows
 
-**Docker**
-
+* **Docker**.
 The Docker Desktop for Windows can be installed from the [Docker website](https://docs.docker.com/desktop/install/windows-install/).
 
 
-**Git** and **Python**
-
+* **Git** and **Python**.
 Instead of installing Git and Python separately, we recommend installing the Windows Subsystem for Linux (WSL) and using the Ubuntu distribution.
 First, you should make sure that you have [WSL 2 running](https://docs.docker.com/desktop/wsl/).
 Once this is set, open PowerShell as an administrator and run the following commands:
-
 ```bash
 wsl --set-default-version 2
 wsl --install -d ubuntu
 ```
-
 After this is completed, please open the Ubuntu WSL terminal from the start menu and execute:
-
 ```bash
 sudo apt update && sudo apt install python3-pip
 ```
 
->>>>>>>>>>>>
-TODO: How to enable Docker from within Ubuntu WSL?
-<<<<<<<<<<<<
 
 ### Install aiidalab-launch
 
@@ -85,6 +74,20 @@ To download the pre-compiled image from the GitHub Container Registry, please ru
 ```bash
 docker pull ghcr.io/nanotech-empa/aiidalab-for-teaching:main
 ```
+
+| :warning: WARNING          |
+|:---------------------------|
+| The `docker pull` command might not work. To fix that, you need to authenticate to GitHub first: |
+| ```bash                                                                                          |
+| docker login ghcr.io -u <github-username>                                                        |
+| Password: <your-token>                                                                           |
+|                                                                                                  |
+| The access token can be created here: https://github.com/settings/tokens                         |
+| Make sure to enable the following permissions:                                                   |
+|                                                                                                  |
+| * write:packages                                                                                 |
+| * read:packages                                                                                  |
+| * delete:packages                                                                                |
 
 To rename the image to `aiidalab/teaching`, please run the following command:
 
