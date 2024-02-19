@@ -35,19 +35,23 @@ execute:
 ```bash
 pip install aiidalab-launch
 ```
-
-
 ### Make sure Docker desktop is running
-
-### To use a pre-compiled docker image:
-....
 
 To build the container locally run the following command:
 ```bash
 docker build -t aiidalab/teaching .
 ```
 
-Once the container is built, you can create a new profile with aiidalab-launch:
+### To use a pre-compiled docker image (e.g. if docker build fails):
+run the command:
+```bash
+ docker pull ghcr.io/nanotech-empa/aiidalab-for-teaching:main
+```
+and rename the image to aiidalab/teaching use:
+```bash
+docker tag ghcr.io/nanotech-empa/aiidalab-for-teaching:main aiidalab/teaching
+```
+#### Once the container is built/downloaded, you can create a new profile with aiidalab-launch:
 ```bash
 aiidalab-launch profile add teaching
 ```
@@ -60,7 +64,6 @@ image = "aiidalab/teaching"
 home_mount = "aiidalab_teaching_home"
 extra_mounts = []
 ```
-
 ### To start aiidalab execute
 ```bash
 aiidalab-launch start --profile teaching
@@ -69,7 +72,6 @@ aiidalab-launch start --profile teaching
 ```bash
 aiidalab-launch stop --profile teaching
 ```
-
 ### Clean-up (will delete everything):
 First, remove the container:
 ```bash
