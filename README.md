@@ -75,6 +75,9 @@ To download the pre-compiled image from the GitHub Container Registry, please ru
 docker pull ghcr.io/nanotech-empa/aiidalab-for-teaching:main
 ```
 
+> [!WARNING]
+> asdfsdf
+
 | :warning: WARNING          |
 |:---------------------------|
 | The `docker pull` command might not work. To fix that, you need to authenticate to GitHub first: |
