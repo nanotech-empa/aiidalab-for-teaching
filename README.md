@@ -81,7 +81,7 @@ docker pull ghcr.io/nanotech-empa/aiidalab-for-teaching:main
 > docker login ghcr.io -u <github-username>
 > Password: <your-token>
 > ```
-> The access token can be created here: https://github.com/settings/tokens
+> The access token can be created [here](https://github.com/settings/tokens)
 > Make sure to enable the following permissions:
 > ```
 > * write:packages
