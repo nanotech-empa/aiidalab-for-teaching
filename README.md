@@ -64,7 +64,7 @@ pip install aiidalab-launch
 ### Get the aiidalab-for-teaching image
 
 At this point you can decide to either use a pre-compiled image from the GitHub Container Registry (ghcr.io) or to build the image locally.
-The first latter approach is recommended if you run on a machine with a different architecture than `x86_64` (e.g. ARM).
+The latter approach is recommended if you run on a machine with a different architecture than `x86_64` (e.g. ARM).
 
 The following sub-sections require to enter the commands in a terminal (Mac/Linux) or in the Ubuntu WSL terminal (on Windows).
 
