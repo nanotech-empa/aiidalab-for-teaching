@@ -36,6 +36,7 @@ The installation instructions are available on the [Conda website](https://docs.
 * **Docker**.
 The Docker Desktop for Windows can be installed from the [Docker website](https://docs.docker.com/desktop/install/windows-install/).
 
+There is an important step when working on **Windows**: after downloading and installing Docker (note: Docker Desktop may prompt you to turn on WSL 2 during installation. Read the information displayed on the screen and turn on the WSL 2 feature to continue), open Docker.app, select "without login", answer a couple of survey questions and then move to the settings, Resources, Advanced, check that "You are using the WSL2 backend" is there, then in "Resources --> WSL integration" activate the "Ubuntu" flag (note: if the flag is still not there, repeat this check after the next step).
 
 * **Git** and **Python**.
 Instead of installing Git and Python separately, we recommend installing the Windows Subsystem for Linux (WSL) and using the Ubuntu distribution.
@@ -50,13 +51,14 @@ After this is completed, please open the Ubuntu WSL terminal from the start menu
 sudo apt update && sudo apt install python3-pip
 ```
 
-**TODO: Add instructions to enable docker within Ubuntu WSL.**
+
+
 
 
 ### Get the aiidalab-for-teaching image
 
 At this point you can decide to either use a pre-compiled image from the GitHub Container Registry (ghcr.io) or to build the image locally.
-The latter approach is recommended if you run on a machine with a different architecture than `x86_64` (e.g. ARM).
+The latter approach is recommended if you run on a machine with a different architecture than `x86_64` (e.g. ARM, e.g. Macbook Pro with M* processor).
 
 The following sub-sections require to enter the commands in a terminal (Mac/Linux) or in the Ubuntu WSL terminal (on Windows).
 
