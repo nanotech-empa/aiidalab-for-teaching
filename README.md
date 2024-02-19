@@ -9,10 +9,12 @@ Since the instructions depend on the operating system, please select the appropr
 #### Linux/Mac
 
 **Docker**
+
 To install Docker, please follow the instructions available on the Docker website for [Linux](https://docs.docker.com/desktop/install/linux-install/) or [Mac](https://docs.docker.com/desktop/install/mac-install/).
 
 
 **Git**
+
 Usually, Git is already installed on Linux and Mac.
 If not, please install it using the package manager of your operating system.
 For instance, on Ubuntu, you can install Git by running the following command:
@@ -35,6 +37,7 @@ The installation instructions are available on the [Conda website](https://docs.
 #### Windows
 
 **Docker**
+
 The Docker Desktop for Windows can be installed from the [Docker website](https://docs.docker.com/desktop/install/windows-install/).
 
 
@@ -55,8 +58,9 @@ After this is completed, please open the Ubuntu WSL terminal from the start menu
 sudo apt update && sudo apt install python3-pip
 ```
 
+>>>>>>>>>>>>
 TODO: How to enable Docker from within Ubuntu WSL?
-
+<<<<<<<<<<<<
 
 ### Install aiidalab-launch
 
@@ -112,9 +116,10 @@ To install aiidalab-launch, please run the following command in your terminal:
 pip install aiidalab-launch
 ```
 
-### Start the container
-```
+### Configure your profile
+
 Once the container is built/downloaded, you can create a new profile with aiidalab-launch:
+
 ```bash
 aiidalab-launch profile add teaching
 ```
@@ -137,11 +142,12 @@ aiidalab-launch start --profile teaching
 aiidalab-launch stop --profile teaching
 ```
 ### Clean-up (will delete everything):
-First, remove the container:
+
+After the container is stopped, you can remove it by running the following command:
 ```bash
 docker rm aiidalab_teaching
 ```
-Also, remove the mounted volume:
+Also, you should remove the volume that contains all your data.
 ```bash
 docker volume rm aiidalab_teaching_home
 ```
