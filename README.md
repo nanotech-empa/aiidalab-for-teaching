@@ -3,7 +3,7 @@
 
 ### Prerequisites
 
-To run the AiiDAlab for teaching on your local machine, we recommnd to have Docker and Python installed.
+To run the AiiDAlab for teaching on your local machine, we recommend to have Docker and Python installed.
 Since the instructions depend on the operating system, please select the appropriate section below.
 
 #### Linux/Mac
