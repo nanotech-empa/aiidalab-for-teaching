@@ -76,21 +76,18 @@ docker pull ghcr.io/nanotech-empa/aiidalab-for-teaching:main
 ```
 
 > [!WARNING]
-> asdfsdf
-
-| :warning: WARNING          |
-|:---------------------------|
-| The `docker pull` command might not work. To fix that, you need to authenticate to GitHub first: |
-| ```bash                                                                                          |
-| docker login ghcr.io -u <github-username>                                                        |
-| Password: <your-token>                                                                           |
-|                                                                                                  |
-| The access token can be created here: https://github.com/settings/tokens                         |
-| Make sure to enable the following permissions:                                                   |
-|                                                                                                  |
-| * write:packages                                                                                 |
-| * read:packages                                                                                  |
-| * delete:packages                                                                                |
+> The `docker pull` command might not work. To fix that, you need to authenticate to GitHub first:
+> ```bash
+> docker login ghcr.io -u <github-username>
+> Password: <your-token>
+> ```
+> The access token can be created here: https://github.com/settings/tokens
+> Make sure to enable the following permissions:
+> ```
+> * write:packages
+> * read:packages
+> * delete:packages
+> ```
 
 To rename the image to `aiidalab/teaching`, please run the following command:
 
