@@ -50,6 +50,7 @@ After this is completed, please open the Ubuntu WSL terminal from the start menu
 sudo apt update && sudo apt install python3-pip
 ```
 
+**TODO: Add instructions to enable docker within Ubuntu WSL.**
 
 ### Install aiidalab-launch
 
