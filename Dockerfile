@@ -16,6 +16,8 @@ RUN cp /home/${NB_USER}/opt/lammps/src/lmp_serial /usr/bin/lmp_serial
 
 USER ${NB_USER}
 
+ENV JUPYTER_TERMINAL_IDLE_TIMEOUT=3600
+
 RUN rm -rf /home/${NB_USER}/opt/lammps/
 
 RUN pip install --user skmatter
@@ -27,6 +29,10 @@ RUN pip install --user scikit-learn
 RUN pip install --user aiida-cp2k
 
 RUN pip install --user spglib
+
+RUN pip install pythtb
+
+RUN conda install -c conda-forge mpi4py
 
 COPY configs /home/${NB_USER}/configs
 
