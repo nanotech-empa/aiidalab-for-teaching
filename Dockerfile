@@ -1,22 +1,25 @@
-FROM aiidalab/full-stack:v2024.1016
+FROM aiidalab/full-stack:2025.1025
 
 USER root
 
-RUN apt-get update -y && apt-get install -y cp2k && apt-get clean -y
+#RUN apt-get update -y && apt-get install -y cp2k && apt-get clean -y
+# Install required system dependencies, including MPI development libraries
+RUN apt-get update -y && apt-get install -y  cp2k libmpich-dev libopenmpi-dev  build-essential  && apt-get clean -y
 
 USER ${NB_USER}
 
 RUN mkdir /home/${NB_USER}/opt
 
-RUN cd /home/${NB_USER}/opt &&  git clone https://github.com/lammps/lammps && cd lammps/src && make lib-pace args="-b" && make yes-molecule && make yes-reaxff && make yes-rigid && make yes-ml-pace && make yes-manybody && make lib-voronoi args="-b" && make yes-voronoi && make serial
+RUN cd /home/${NB_USER}/opt &&  git clone https://github.com/lammps/lammps && cd lammps/src && make lib-pace args="-b" && make yes-molecule && make yes-reaxff && make yes-rigid && make yes-ml-pace && make yes-manybody && make lib-voronoi args="-b" && make yes-voronoi && make mpi
 
 USER root
 
-RUN cp /home/${NB_USER}/opt/lammps/src/lmp_serial /usr/bin/lmp_serial
+RUN cp /home/${NB_USER}/opt/lammps/src/lmp_mpi /usr/bin/lmp_mpi
 
 USER ${NB_USER}
 
 ENV JUPYTER_TERMINAL_IDLE_TIMEOUT=3600
+ENV ASE_LAMMPSRUN_COMMAND="/opt/conda/bin/mpirun --np 2 /usr/bin/lmp_mpi"
 
 RUN rm -rf /home/${NB_USER}/opt/lammps/
 
