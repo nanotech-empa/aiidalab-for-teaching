@@ -52,22 +52,37 @@ sudo apt update && sudo apt install python3-pip
 ```
 
 
+### Install aiidalab-launch
+
+To install aiidalab-launch, please run the following command in your terminal:
+
+```bash
+pip install aiidalab-launch
+```
 
 
 
 ### Get the aiidalab-for-teaching image
 
-At this point you can decide to either use a pre-compiled image from the GitHub Container Registry (ghcr.io) or to build the image locally.
+At this point, you can decide to either use a pre-compiled image from the GitHub Container Registry (ghcr.io) or to build the image locally.
 The latter approach is recommended if you run on a machine with a different architecture than `x86_64` (e.g. ARM, e.g. Macbook Pro with M* processor).
 
 The following sub-sections require to enter the commands in a terminal (Mac/Linux) or in the Ubuntu WSL terminal (on Windows).
 
 #### Option 1: Pull the pre-compiled image
 
-To download the pre-compiled image from the GitHub Container Registry, please run the following command:
-
+You can configure aiidalab-launch to use the image that was built by us:
 ```bash
-docker pull ghcr.io/nanotech-empa/aiidalab-for-teaching:main
+aiidalab-launch profile add teaching
+```
+the content will be similar to the following:
+```
+port = 8891  # in your case might be different, keep the automatically generated value
+default_apps = []
+system_user = "jovyan"
+image = "ghcr.io/nanotech-empa/aiidalab-for-teaching:main" # make sure to use this link
+home_mount = "aiidalab_teaching_home"
+extra_mounts = []
 ```
 
 > [!WARNING]
@@ -84,13 +99,6 @@ docker pull ghcr.io/nanotech-empa/aiidalab-for-teaching:main
 > * delete:packages
 > ```
 
-To rename the image to `aiidalab/teaching`, please run the following command:
-
-```bash
-docker tag ghcr.io/nanotech-empa/aiidalab-for-teaching:main aiidalab/teaching
-```
-
-
 #### Option 2: Build the image locally
 
 First, make sure the Docker Desktop is running.
@@ -106,27 +114,17 @@ execute:
 docker build -t aiidalab/teaching .
 ```
 
-### Install aiidalab-launch
-
-To install aiidalab-launch, please run the following command in your terminal:
-
-```bash
-pip install aiidalab-launch
-```
-
-### Configure your profile
-
-Once the container is built/downloaded, you can create a new profile with aiidalab-launch:
+Once the image is built, create a new profile running
 
 ```bash
 aiidalab-launch profile add teaching
 ```
-with the following content:
+the content will be similar to the following:
 ```
-port = 8891
-default_apps = [ "mfa-cscs", "quantum-espresso",]
+port = 8891  # in your case might be different, keep the automatically generated value
+default_apps = []
 system_user = "jovyan"
-image = "aiidalab/teaching"
+image = "aiidalab/teaching"  # make sure to use this link
 home_mount = "aiidalab_teaching_home"
 extra_mounts = []
 ```
