@@ -46,9 +46,9 @@ Once this is set, open PowerShell as an administrator and run the following comm
 wsl --set-default-version 2
 wsl --install -d ubuntu
 ```
-After this is completed, please open the Ubuntu WSL terminal from the start menu and execute:
+After this is completed, please open the Ubuntu terminal from the start menu and execute:
 ```bash
-sudo apt update && sudo apt install python3-pip
+sudo apt update && sudo apt install pipx
 ```
 
 
@@ -57,7 +57,7 @@ sudo apt update && sudo apt install python3-pip
 To install aiidalab-launch, please run the following command in your terminal:
 
 ```bash
-pip install aiidalab-launch
+pipx install aiidalab-launch
 ```
 
 
