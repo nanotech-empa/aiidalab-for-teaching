@@ -40,3 +40,7 @@ RUN conda install -c conda-forge mpi4py
 COPY configs /home/${NB_USER}/configs
 
 COPY before-notebook.d/* /usr/local/bin/before-notebook.d/
+
+RUN pip install scikit-learn optuna xgboost lightgbm sympy pandas
+
+RUN pip install torch  torchmetrics torchvision
