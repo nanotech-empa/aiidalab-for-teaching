@@ -18,6 +18,6 @@ else
     echo "cp2k-spm-tools not found, installing after removing dir"
     rm -Rf /home/jovyan/soft/cp2k-spm-tools /home/jovyan/cp2k-spm-tools
     git clone https://github.com/nanotech-empa/cp2k-spm-tools.git
-    mv cp2k-spm-tools /home/jovyan/soft/
+    mv cp2k-spm-tools/cp2k-spm-tools /home/jovyan/soft/
     chmod a+x /home/jovyan/soft/cp2k-spm-tools/*py
 fi
