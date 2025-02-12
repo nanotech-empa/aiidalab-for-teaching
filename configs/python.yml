@@ -1,0 +1,8 @@
+append_text: ' '
+computer: localhost
+default_calc_job_plugin: pythonjob.pythonjob
+description: python at daint alps
+filepath_executable: /opt/conda/bin/python
+label: python-py39
+prepend_text: ' '
+use_double_quotes: 'False'
