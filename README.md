@@ -84,6 +84,10 @@ image = "ghcr.io/nanotech-empa/aiidalab-for-teaching:main" # make sure to use th
 home_mount = "aiidalab_teaching_home"
 extra_mounts = []
 ```
+For **ARM64** you can use the following value for ```image```
+```
+image = "ghcr.io/nanotech-empa/aiidalab-for-teaching:arm64"
+```
 
 > [!WARNING]
 > The `docker pull` command might not work. To fix that, you need to authenticate to GitHub first:
