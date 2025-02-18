@@ -36,7 +36,7 @@ The installation instructions are available on the [Conda website](https://docs.
 * **Docker**.
 The Docker Desktop for Windows can be installed from the [Docker website](https://docs.docker.com/desktop/install/windows-install/).
 
-There is an important step when working on **Windows**: after downloading and installing Docker (note: Docker Desktop may prompt you to turn on WSL 2 during installation. Read the information displayed on the screen and turn on the WSL 2 feature to continue), open Docker.app, select "without login", answer a couple of survey questions and then move to the settings, Resources, Advanced, check that "You are using the WSL2 backend" is there, then in "Resources --> WSL integration" activate the "Ubuntu" flag (note: if the flag is still not there, repeat this check after the next step).
+
 
 * **Git** and **Python**.
 Instead of installing Git and Python separately, we recommend installing the Windows Subsystem for Linux (WSL) and using the Ubuntu distribution.
@@ -46,6 +46,10 @@ Once this is set, open PowerShell as an administrator and run the following comm
 wsl --set-default-version 2
 wsl --install -d ubuntu
 ```
+
+There is an important step when working on **Windows**: after downloading and installing Docker (note: Docker Desktop may prompt you to turn on WSL 2 during installation. Read the information displayed on the screen and turn on the WSL 2 feature to continue), open Docker.app, select "without login", skip a couple of survey questions and then move to the settings, Resources, Advanced, check that "You are using the WSL2 backend" is there, then in "Resources --> WSL integration" activate the "Ubuntu" flag.
+
+
 After this is completed, please open the Ubuntu terminal from the start menu and execute:
 ```bash
 sudo apt update && sudo apt install pipx
@@ -57,7 +61,7 @@ sudo apt update && sudo apt install pipx
 To install aiidalab-launch, please run the following command in your terminal:
 
 ```bash
-pipx install aiidalab-launch
+pipx install aiidalab-launch && pipx ensurepath
 ```
 
 
@@ -65,13 +69,35 @@ pipx install aiidalab-launch
 ### Get the aiidalab-for-teaching image
 
 At this point, you can decide to either use a pre-compiled image from the GitHub Container Registry (ghcr.io) or to build the image locally.
-The latter approach is recommended if you run on a machine with a different architecture than `x86_64` (e.g. ARM, e.g. Macbook Pro with M* processor).
+The latter approach is recommended if you run on a machine with a different architecture than `x86_64/amd64` and ARM (Macbook Pro with M* processor), in case that the precompiled images don't work.
 
 The following sub-sections require to enter the commands in a terminal (Mac/Linux) or in the Ubuntu WSL terminal (on Windows).
 
-#### Option 1: Pull the pre-compiled image
+#### Option 1: Download the pre-compiled image from a repository, and load it to docker
 
-You can configure aiidalab-launch to use the image that was built by us:
+First, download the image to a convenient folder on your computer. Note that on a windows Ubuntu, the files of the c drive are available under `/mnt/c/`
+from the following
+
+[Switch folder](https://drive.switch.ch/index.php/s/Z98VSuegodCYiog)
+
+Choose the `amd64.tar` file or the `mac_arm64.tar` as appropriate. 
+
+Once downloaded, open the docker app, go back to your terminal window, locate the tar file, `cd` to that directory and give the command
+
+```bash
+docker load -i nameoftheimage.tar
+```
+replacing the placeholder with the appropriate name. 
+The docker dashboard will show that the virtual disk space is filling with gigabytes, typically up to 30 GB for the amd64 image, a bit less for the mac one. 
+
+Once the image is loaded, let us find its name:
+```bash
+docker image ls
+```
+
+
+
+You can configure aiidalab-launch to use the image:
 ```bash
 aiidalab-launch profile add teaching
 ```
@@ -80,28 +106,15 @@ the content will be similar to the following:
 port = 8891  # in your case might be different, keep the automatically generated value
 default_apps = []
 system_user = "jovyan"
-image = "ghcr.io/nanotech-empa/aiidalab-for-teaching:main" # make sure to use this link
+image = "ghcr.io/nanotech-empa/aiidalab-for-teaching:main" # make sure to use the link from `docker image ls`, plus the main suffix after "colon"
 home_mount = "aiidalab_teaching_home"
 extra_mounts = []
 ```
 For **ARM64** you can use the following value for ```image```
 ```
-image = "ghcr.io/nanotech-empa/aiidalab-for-teaching:arm64"
+image = "ghcr.io/nanotech-empa/aiidalab-for-teaching:arm64" # make sure to use the link from `docker image ls`, plus the arm64 suffix after "colon"
 ```
 
-> [!WARNING]
-> The `docker pull` command might not work. To fix that, you need to authenticate to GitHub first:
-> ```bash
-> docker login ghcr.io -u <github-username>
-> Password: <your-token>
-> ```
-> The access token can be created [here](https://github.com/settings/tokens).
-> While creating it, please make sure to enable the following permissions:
-> ```
-> * write:packages
-> * read:packages
-> * delete:packages
-> ```
 
 #### Option 2: Build the image locally
 
