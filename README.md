@@ -58,7 +58,7 @@ sudo apt update && sudo apt install pipx
 
 ### Install aiidalab-launch
 
-To install aiidalab-launch, please run the following command in your terminal:
+To install aiidalab-launch, please run the following command in your terminal. **Note the pipx command**
 
 ```bash
 pipx install aiidalab-launch && pipx ensurepath
@@ -95,18 +95,22 @@ Once the image is loaded, let us find its name:
 docker image ls
 ```
 
+the result will be similar to the following:
 
+![image](https://github.com/user-attachments/assets/325e06de-50a9-45c5-b91e-ee4ff08582d4)
+
+You see a name, followed by a tag. We will use both in the profile.
 
 You can configure aiidalab-launch to use the image:
 ```bash
 aiidalab-launch profile add teaching
 ```
-the content will be similar to the following:
+
 ```
 port = 8891  # in your case might be different, keep the automatically generated value
 default_apps = []
 system_user = "jovyan"
-image = "ghcr.io/nanotech-empa/aiidalab-for-teaching:main" # make sure to use the link from `docker image ls`, plus the main suffix after "colon"
+image = "ghcr.io/nanotech-empa/aiidalab-for-teaching:main" # make sure to use the link from `docker image ls`, plus the tag after "colon". It could be "main" or "arm64" or something els.
 home_mount = "aiidalab_teaching_home"
 extra_mounts = []
 ```
