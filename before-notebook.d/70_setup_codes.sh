@@ -9,6 +9,6 @@ for code in "${codes[@]}"; do
         echo "$code code found"
     else
         echo "$code code not found, creating"
-        verdi code create core.code.installed --config "/home/${NB_USER}/configs/${code}.yml"
+        verdi code create core.code.installed --config "/opt/configs/${code}.yml"
     fi
 done

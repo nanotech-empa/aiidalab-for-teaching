@@ -111,10 +111,12 @@ USER root
 RUN mv /home/jovyan/opt/critic2/build/src/critic2 /usr/local/bin/critic2
 RUN chmod a+rx /usr/local/bin/critic2
 RUN rm -rf /home/jovyan/opt/critic2
-USER ${NB_USER}
 
 ####
 # Copy from local computer to Docker
 COPY before-notebook.d/* /usr/local/bin/before-notebook.d/
-COPY configs /home/${NB_USER}/configs
+COPY configs /opt/configs
+RUN chmod a+rx /opt/configs
+RUN chmod a+rx /opt/configs/*
 
+USER ${NB_USER}
