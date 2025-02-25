@@ -1,21 +1,24 @@
 FROM aiidalab/full-stack:2025.1025
 
 USER root
-
+RUN mkdir /opt/install
+ENV PYTHONUSERBASE=/opt/install
+ENV PATH="/opt/install/bin:$PATH"
+ENV PYTHONPATH="${PYTHONPATH:-}:/opt/install"
 RUN apt-get update -y && apt-get install -y  cp2k libmpich-dev libopenmpi-dev  build-essential  && apt-get clean -y
 
-RUN pip install virtualenv
+#RUN pip install virtualenv
 
-ENV deepmd_root=/opt/deepmd-kit
-ENV deepmd_source_dir=/opt/deepmd-kit
-ENV tensorflow_venv=/opt/tensorflow_venv
-ENV deepmd_root=/opt/deepmd-kit
+ENV deepmd_root=/opt/install/deepmd-kit
+ENV deepmd_source_dir=/opt/install/deepmd-kit
+ENV tensorflow_venv=/opt/install/tensorflow_venv
+ENV deepmd_root=/opt/install/deepmd-kit
 
-RUN cd /opt && git clone https://github.com/deepmodeling/deepmd-kit.git deepmd-kit
+RUN cd /opt/install && git clone https://github.com/deepmodeling/deepmd-kit.git deepmd-kit
 
-RUN virtualenv -p python3 $tensorflow_venv
+#RUN virtualenv -p python3 $tensorflow_venv
 
-RUN source $tensorflow_venv/bin/activate
+#RUN source $tensorflow_venv/bin/activate
 
 
 RUN pip install --upgrade tensorflow
@@ -28,13 +31,13 @@ RUN cd $deepmd_source_dir/source/build && pwd && pip install -U cmake && cmake -
 
 RUN cd $deepmd_source_dir/source/build && make lammps
 
-RUN cd /opt &&  git clone https://github.com/lammps/lammps && cd lammps/src && cp -r $deepmd_source_dir/source/build/USER-DEEPMD . && make lib-pace args="-b" && make yes-molecule && make yes-reaxff && make yes-rigid && make yes-ml-pace && make yes-manybody && make lib-voronoi args="-b" && make yes-voronoi && make lib-plumed args="-b" CC=gcc CXX=g++ && make yes-plumed && make yes-kspace && make yes-extra-fix && make yes-user-deepmd && make serial
+RUN cd /opt/install &&  git clone https://github.com/lammps/lammps && cd lammps/src && cp -r $deepmd_source_dir/source/build/USER-DEEPMD . && make lib-pace args="-b" && make yes-molecule && make yes-reaxff && make yes-rigid && make yes-ml-pace && make yes-manybody && make lib-voronoi args="-b" && make yes-voronoi && make lib-plumed args="-b" CC=gcc CXX=g++ && make yes-plumed && make yes-kspace && make yes-extra-fix && make yes-user-deepmd && make serial
 
 RUN deactivate
 
-RUN cp /opt/lammps/src/lmp_serial /usr/bin/lmp_serial
+RUN cp /opt/install/lammps/src/lmp_serial /usr/bin/lmp_serial
 
-RUN rm -rf /opt/lammps/
+RUN rm -rf /opt/install/lammps/
 
 ENV JUPYTER_TERMINAL_IDLE_TIMEOUT=3600
 ENV ASE_LAMMPSRUN_COMMAND="/usr/bin/lmp_serial"
@@ -46,15 +49,15 @@ RUN pip install mdtraj
 
 RUN pip install  skmatter
 
-RUN cd /opt && git clone https://github.com/lab-cosmo/librascal.git && cd librascal && pip install  .
+RUN cd /opt/install && git clone https://github.com/lab-cosmo/librascal.git && cd librascal && pip install  .
 
 RUN pip install scikit-learn optuna xgboost lightgbm sympy pandas
 
 RUN pip install torch  torchmetrics torchvision
 
-RUN cd /opt && git clone https://github.com/aoterodelaroza/critic2.git
+RUN cd /opt/install && git clone https://github.com/aoterodelaroza/critic2.git
 
-RUN cd /opt/critic2 && mkdir build && cd build && cmake .. && make
+RUN cd /opt/install/critic2 && mkdir build && cd build && cmake .. && make
 
 
 
@@ -70,9 +73,9 @@ RUN pip install cp2k-spm-tools
 #### hyperqueue
 
 
-RUN mv /opt/critic2/build/src/critic2 /usr/local/bin/critic2
+RUN mv /opt/install/critic2/build/src/critic2 /usr/local/bin/critic2
 RUN chmod a+rx /usr/local/bin/critic2
-RUN rm -rf /opt/critic2
+RUN rm -rf /opt/install/critic2
 
 ####
 # Copy from local computer to Docker
