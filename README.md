@@ -80,15 +80,15 @@ from the following
 
 [Switch folder](https://drive.switch.ch/index.php/s/Z98VSuegodCYiog)
 
-Choose the `amd64.tar` file or the `mac_arm64.tar` as appropriate. 
+Choose the `amd64.tar` file or the `mac_arm64.tar` as appropriate.
 
 Once downloaded, open the docker app, go back to your terminal window, locate the tar file, `cd` to that directory and give the command
 
 ```bash
 docker load -i nameoftheimage.tar
 ```
-replacing the placeholder with the appropriate name. 
-The docker dashboard will show that the virtual disk space is filling with gigabytes, typically up to 30 GB for the amd64 image, a bit less for the mac one. 
+replacing the placeholder with the appropriate name.
+The docker dashboard will show that the virtual disk space is filling with gigabytes, typically up to 30 GB for the amd64 image, a bit less for the mac one.
 
 Once the image is loaded, let us find its name:
 ```bash

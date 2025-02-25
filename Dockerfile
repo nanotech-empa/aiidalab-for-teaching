@@ -30,7 +30,7 @@ RUN cd $deepmd_source_dir/source/build && make lammps
 
 RUN cd /opt &&  git clone https://github.com/lammps/lammps && cd lammps/src && cp -r $deepmd_source_dir/source/build/USER-DEEPMD . && make lib-pace args="-b" && make yes-molecule && make yes-reaxff && make yes-rigid && make yes-ml-pace && make yes-manybody && make lib-voronoi args="-b" && make yes-voronoi && make lib-plumed args="-b" CC=gcc CXX=g++ && make yes-plumed && make yes-kspace && make yes-extra-fix && make yes-user-deepmd && make serial
 
-RUN deactivate 
+RUN deactivate
 
 RUN cp /opt/lammps/src/lmp_serial /usr/bin/lmp_serial
 
@@ -54,7 +54,7 @@ RUN pip install torch  torchmetrics torchvision
 
 RUN cd /opt && git clone https://github.com/aoterodelaroza/critic2.git
 
-RUN cd /opt/critic2 && mkdir build && cd build && cmake .. && make 
+RUN cd /opt/critic2 && mkdir build && cd build && cmake .. && make
 
 
 
