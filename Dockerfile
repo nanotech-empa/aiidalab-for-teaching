@@ -84,4 +84,5 @@ COPY configs /opt/configs
 RUN chmod a+rx /opt/configs
 RUN chmod a+rx /opt/configs/*
 RUN chown -R ${NB_USER}:users /home/jovyan
+ENV PYTHONUSERBASE=""
 USER ${NB_USER}
