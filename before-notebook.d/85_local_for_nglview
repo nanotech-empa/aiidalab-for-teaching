@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# Define source and destination directories
+ETC_SOURCE="/opt/install/etc"
+ETC_DEST="/home/jovyan/.local/etc"
+
+NBEXT_SOURCE="/opt/install/share/jupyter/nbextensions"
+NBEXT_DEST="/home/jovyan/.local/share/jupyter/nbextensions"
+
+# Check and copy etc directory if not exists
+if [ ! -d "$ETC_DEST" ]; then
+    cp -r "$ETC_SOURCE" "/home/jovyan/.local"
+fi
+
+# Check and copy nbextensions directory if not exists
+if [ ! -d "$NBEXT_DEST" ]; then
+    mkdir -p "$(dirname "$NBEXT_DEST")"
+    cp -r "$NBEXT_SOURCE" "$NBEXT_DEST"
+fi
