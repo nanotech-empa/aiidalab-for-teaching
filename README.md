@@ -64,6 +64,7 @@ To install aiidalab-launch, please run the following command in your terminal. *
 pipx install aiidalab-launch && pipx ensurepath
 ```
 
+**NOTE: IF YOU HAVE PROBLEMS OF ANY KIND WITH AIIDALAB-LAUNCH, THERE IS A PROCEDURE TO LAUNCH THE IMAGE ENTIRELY FROM THE DOCKER DESKTOP. CONTACT US**
 
 
 ### Get the aiidalab-for-teaching image
@@ -73,50 +74,27 @@ The latter approach is recommended if you run on a machine with a different arch
 
 The following sub-sections require to enter the commands in a terminal (Mac/Linux) or in the Ubuntu WSL terminal (on Windows).
 
-#### Option 1: Download the pre-compiled image from a repository, and load it to docker
+#### Option 1: Download the pre-compiled image using aiidalab-launch and load it to docker
 
-First, download the image to a convenient folder on your computer. Note that on a windows Ubuntu, the files of the c drive are available under `/mnt/c/`
-from the following
 
-[Switch folder](https://drive.switch.ch/index.php/s/Z98VSuegodCYiog)
-
-Choose the `amd64.tar` file or the `mac_arm64.tar` as appropriate.
-
-Once downloaded, open the docker app, go back to your terminal window, locate the tar file, `cd` to that directory and give the command
-
-```bash
-docker load -i nameoftheimage.tar
-```
-replacing the placeholder with the appropriate name.
-The docker dashboard will show that the virtual disk space is filling with gigabytes, typically up to 30 GB for the amd64 image, a bit less for the mac one.
-
-Once the image is loaded, let us find its name:
-```bash
-docker image ls
-```
-
-the result will be similar to the following:
-
-![image](https://github.com/user-attachments/assets/325e06de-50a9-45c5-b91e-ee4ff08582d4)
-
-You see a name, followed by a tag. We will use both in the profile.
 
 You can configure aiidalab-launch to use the image:
 ```bash
 aiidalab-launch profile add teaching
 ```
 
+This is for the ** win/linux ** case:
 ```
-port = 8891  # in your case might be different, keep the automatically generated value
+port = 8891  # Better to use a different port wrt 8888 which is the default of jupyter-notebook local (if you have it)
 default_apps = []
 system_user = "jovyan"
-image = "ghcr.io/nanotech-empa/aiidalab-for-teaching:main" # make sure to use the link from `docker image ls`, plus the tag after "colon". It could be "main" or "arm64" or something els.
+image = "ghcr.io/nanotech-empa/aiidalab-for-teaching:latest" # if you have a linux/win intel computer
 home_mount = "aiidalab_teaching_home"
 extra_mounts = []
 ```
 For **ARM64** you can use the following value for ```image```
 ```
-image = "ghcr.io/nanotech-empa/aiidalab-for-teaching:arm64" # make sure to use the link from `docker image ls`, plus the arm64 suffix after "colon"
+image = "ghcr.io/nanotech-empa/aiidalab-for-teaching:arm64" # ** M* processor image **
 ```
 
 
@@ -142,7 +120,7 @@ aiidalab-launch profile add teaching
 ```
 the content will be similar to the following:
 ```
-port = 8891  # in your case might be different, keep the automatically generated value
+port = 8891  # Better to use a different port wrt 8888 which is the default of jupyter-notebook local (if you have it)
 default_apps = []
 system_user = "jovyan"
 image = "aiidalab/teaching"  # make sure to use this link
