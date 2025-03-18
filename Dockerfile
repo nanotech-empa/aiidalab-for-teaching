@@ -99,9 +99,7 @@ RUN mv /opt/install/critic2/build/src/critic2 /usr/local/bin/critic2 && \
 # Copy from local computer to Docker.
 COPY before-notebook.d/* /usr/local/bin/before-notebook.d/
 COPY configs /opt/configs
-RUN chmod a+x /usr/local/bin/before-notebook.d/*
-RUN chmod a+rx /opt/configs
-RUN chmod a+rx /opt/configs/*
+RUN chmod -R a+rx /opt/configs /usr/local/bin/before-notebook.d/
 
 RUN chown -R ${NB_USER}:users /home/jovyan
 
