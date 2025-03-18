@@ -58,6 +58,7 @@ RUN cd /opt/install && \
 RUN pip install --no-cache-dir \
     cp2k-spm-tools \
     mdtraj \
+    nglview \
     optuna \
     pandas \
     plotly==5.24.1 \
@@ -79,7 +80,6 @@ RUN cd /opt/install && \
     cmake .. && \
     make
 
-# Hyperqueue.
 RUN mv /opt/install/critic2/build/src/critic2 /usr/local/bin/critic2 && \
     chmod a+rx /usr/local/bin/critic2 && \
     rm -rf /opt/install/critic2

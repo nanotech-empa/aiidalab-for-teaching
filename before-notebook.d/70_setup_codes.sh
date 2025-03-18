@@ -1,7 +1,7 @@
 set -x
 
 # List of codes to check
-codes=("critic2" "cp2k" "python-py39" "stm")
+codes=("critic2" "cp2k" "python-py39" "stm-n")
 
 # Loop through each code
 for code in "${codes[@]}"; do
