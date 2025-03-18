@@ -42,10 +42,8 @@ RUN pip install --upgrade --no-cache-dir \
     xgboost
 
 RUN cd /opt/install && \
-    git clone https://github.com/deepmodeling/deepmd-kit.git deepmd-kit
-
-RUN cd $deepmd_source_dir && \
-    pip install .
+    git clone https://github.com/deepmodeling/deepmd-kit.git deepmd-kit && \
+    pip install ./deepmd-kit
 
 RUN cd $deepmd_source_dir/source && \
     mkdir build && \
@@ -75,24 +73,20 @@ RUN cd /opt/install && \
     make yes-kspace && \
     make yes-extra-fix && \
     make yes-user-deepmd && \
-    make serial
-
-RUN cp /opt/install/lammps/src/lmp_serial /usr/bin/lmp_serial
-
-RUN rm -rf /opt/install/lammps/
+    make serial && \
+    cp /opt/install/lammps/src/lmp_serial /usr/bin/lmp_serial && \
+    rm -rf /opt/install/lammps/
 
 RUN cd /opt/install && \
     git clone https://github.com/lab-cosmo/librascal.git && \
-    cd librascal && \
-    pip install  .
+    pip install ./librascal
 
 RUN cd /opt/install && \
     git clone https://github.com/aoterodelaroza/critic2.git && \
     cd /opt/install/critic2 && mkdir build && cd build && \
     cmake .. && \
-    make
-
-RUN mv /opt/install/critic2/build/src/critic2 /usr/local/bin/critic2 && \
+    make && \
+    mv /opt/install/critic2/build/src/critic2 /usr/local/bin/critic2 && \
     chmod a+rx /usr/local/bin/critic2 && \
     rm -rf /opt/install/critic2
 
