@@ -23,7 +23,9 @@ ENV tensorflow_venv=/opt/install/tensorflow_venv
 RUN cd /opt/install && \
     git clone https://github.com/deepmodeling/deepmd-kit.git deepmd-kit
 
-RUN pip install --upgrade tensorflow
+RUN pip install --upgrade --no-cache-dir \
+    cmake \
+    tensorflow
 
 RUN cd $deepmd_source_dir && \
     pip install .
@@ -32,13 +34,14 @@ RUN cd $deepmd_source_dir/source && \
     mkdir build && \
     cd build
 
-RUN cd $deepmd_source_dir/source/build && pwd && pip install -U cmake && cmake -DUSE_TF_PYTHON_LIBS=TRUE -DCMAKE_INSTALL_PREFIX=$deepmd_source_dir .. && make && make install
+RUN cd $deepmd_source_dir/source/build && \
+    cmake -DUSE_TF_PYTHON_LIBS=TRUE -DCMAKE_INSTALL_PREFIX=$deepmd_source_dir .. && \
+    make && \
+    make install
 
 RUN cd $deepmd_source_dir/source/build && make lammps
 
-RUN cd /opt/install &&  git clone https://github.com/lammps/lammps && cd lammps/src && cp -r $deepmd_source_dir/source/build/USER-DEEPMD . && make lib-pace args="-b" && make yes-molecule && make yes-reaxff && make yes-rigid && make yes-ml-pace && make yes-manybody && make lib-voronoi args="-b" && make yes-voronoi && make lib-plumed args="-b" CC=gcc CXX=g++ && make yes-plumed && make yes-kspace && make yes-extra-fix && make yes-user-deepmd && make serial
-
-RUN deactivate
+RUN cd /opt/install && git clone https://github.com/lammps/lammps && cd lammps/src && cp -r $deepmd_source_dir/source/build/USER-DEEPMD . && make lib-pace args="-b" && make yes-molecule && make yes-reaxff && make yes-rigid && make yes-ml-pace && make yes-manybody && make lib-voronoi args="-b" && make yes-voronoi && make lib-plumed args="-b" CC=gcc CXX=g++ && make yes-plumed && make yes-kspace && make yes-extra-fix && make yes-user-deepmd && make serial
 
 RUN cp /opt/install/lammps/src/lmp_serial /usr/bin/lmp_serial
 
@@ -57,6 +60,7 @@ RUN pip install --no-cache-dir \
     mdtraj \
     optuna \
     pandas \
+    plotly==5.24.1 \
     pymatgen \
     pythtb \
     scikit-learn \
