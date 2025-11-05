@@ -1,12 +1,10 @@
-FROM aiidalab/full-stack:2025.1025
+FROM aiidalab/full-stack:latest
 
 USER root
 
 ENV PATH="/opt/install/bin:$PATH"
 ENV PYTHONPATH="${PYTHONPATH:-}:/opt/install"
-ENV deepmd_source_dir=/opt/install/deepmd-kit
 ENV JUPYTER_TERMINAL_IDLE_TIMEOUT=3600
-ENV ASE_LAMMPSRUN_COMMAND="/usr/bin/lmp_serial"
 
 RUN mkdir /opt/install
 
@@ -29,57 +27,8 @@ RUN pip install --upgrade --no-cache-dir \
     pandas \
     plotly==5.24.1 \
     pymatgen \
-    pythtb \
-    scikit-learn \
     scikit-image \
-    skmatter \
-    spglib \
-    sympy \
-    tensorflow \
-    torch \
-    torchmetrics \
-    torchvision \
     xgboost
-
-RUN cd /opt/install && \
-    git clone https://github.com/deepmodeling/deepmd-kit.git deepmd-kit && \
-    pip install ./deepmd-kit
-
-RUN cd $deepmd_source_dir/source && \
-    mkdir build && \
-    cd build
-
-RUN cd $deepmd_source_dir/source/build && \
-    cmake -DUSE_TF_PYTHON_LIBS=TRUE -DCMAKE_INSTALL_PREFIX=$deepmd_source_dir .. && \
-    make && \
-    make install
-
-RUN cd $deepmd_source_dir/source/build && make lammps
-
-RUN cd /opt/install && \
-    git clone https://github.com/lammps/lammps && \
-    cd lammps/src && \
-    cp -r $deepmd_source_dir/source/build/USER-DEEPMD . && \
-    make lib-pace args="-b" && \
-    make yes-molecule && \
-    make yes-reaxff && \
-    make yes-rigid && \
-    make yes-ml-pace && \
-    make yes-manybody && \
-    make lib-voronoi args="-b" && \
-    make yes-voronoi && \
-    make lib-plumed args="-b" CC=gcc CXX=g++ && \
-    make yes-plumed && \
-    make yes-kspace && \
-    make yes-extra-fix && \
-    make yes-user-deepmd && \
-    make serial && \
-    cp /opt/install/lammps/src/lmp_serial /usr/bin/lmp_serial && \
-    rm -rf /opt/install/lammps/
-
-RUN cd /opt/install && \
-    git clone https://github.com/lab-cosmo/librascal.git && \
-    pip install ./librascal
 
 RUN cd /opt/install && \
     git clone https://github.com/aoterodelaroza/critic2.git && \

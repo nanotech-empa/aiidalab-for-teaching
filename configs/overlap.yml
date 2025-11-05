@@ -1,0 +1,8 @@
+label: "overlap"
+description: "overlap code from https://github.com/nanotech-empa/cp2k-spm-tools.git"
+default_calc_job_plugin: "nanotech_empa.overlap"
+filepath_executable: "/opt/conda/bin/cp2k-overlap-from-wfns"
+computer: "localhost"
+prepend_text: " "
+append_text: " "
+use_double_quotes: "False"
