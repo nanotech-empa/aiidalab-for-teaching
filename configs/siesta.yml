@@ -1,0 +1,8 @@
+append_text: ''
+computer: localhost
+default_calc_job_plugin: siesta
+description: ''
+filepath_executable: /usr/local/bin/siesta
+label: siesta
+prepend_text: export VECLIB_MAXIMUM_THREADS=1
+use_double_quotes: 'False'
