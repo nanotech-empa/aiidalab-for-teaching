@@ -47,7 +47,7 @@ RUN pip install --upgrade --no-cache-dir \
 # ----------------------------------------------------------------------
 # 🧩 Build SIESTA from source (CMake-based build, flook disabled)
 # ----------------------------------------------------------------------
-WORKDIR /opt/install
+RUN cd /opt/install
 
 # clone and build SIESTA
 RUN set -ex && \
