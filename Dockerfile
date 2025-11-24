@@ -47,23 +47,24 @@ RUN pip install --upgrade --no-cache-dir \
 # ----------------------------------------------------------------------
 # 🧩 Build SIESTA from source (CMake-based build, flook disabled)
 # ----------------------------------------------------------------------
+#aiida-pseudo install pseudo-dojo -v 0.4 -x PBE -r SR -p standard -f psml
 RUN cd /opt/install
 
 # clone and build SIESTA
 RUN set -ex && \
-    git clone https://gitlab.com/siesta-project/siesta.git && \
-    cd siesta && \
+    curl -L https://gitlab.com/siesta-project/siesta/-/releases/5.4.1/downloads/siesta-5.4.1.tar.gz -o siesta-5.4.1.tar.gz && \
+    tar -xzf siesta-5.4.1.tar.gz && \
+    rm -rf siesta-5.4.1.tar.gz && \
+    cd siesta-5.4.1 && \
     cmake -S . -B _build \
         -DCMAKE_INSTALL_PREFIX=/usr/local \
-        -DCMAKE_Fortran_COMPILER=mpif90 \
-        -DCMAKE_C_COMPILER=mpicc \
-        -DSIESTA_MPI=ON \
-        -DLAPACK_LIBRARIES="-llapack -lblas" \
-        -DFORTRAN_FLAGS="-O2" \
+        -DLIBGRIDXC_WITH_MPI=ON \
+        -DSIESTA_WITH_MPI=ON \
+        -DSCALAPACK_LIBRARY="-lscalapack-openmpi" \
         -DSIESTA_WITH_FLOOK=OFF && \
     cmake --build _build -j$(nproc) && \
     cmake --install _build && \
-    cd /opt/install && rm -rf siesta
+    cd /opt/install && rm -rf siesta-5.4.1
 
 # quick test to verify it was installed correctly
 #RUN siesta < /dev/null | head -n 5 || echo "SIESTA compiled and installed successfully"
