@@ -13,21 +13,20 @@ RUN mkdir /opt/install
 # ----------------------------------------------------------------------
 RUN apt-get update -y && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
-        cp2k \
-        cmake \
-        build-essential \
-        git \
-        gfortran \
-        pkg-config \
-        libmpich-dev \
-        libopenmpi-dev \
-        liblapack-dev \
-        libblas-dev \
-        libfftw3-dev \
-        libscalapack-openmpi-dev \
-        libnetcdff-dev && \
-        ln -sf /usr/lib/aarch64-linux-gnu/libscalapack-openmpi.so.2.1.0 /usr/lib/libscalapack-openmpi.so.2.1.0 && \
-        ln -sf /usr/lib/aarch64-linux-gnu/libscalapack-openmpi.so /usr/lib/libscalapack-openmpi.so && \
+    cmake \
+    build-essential \
+    git \
+    gfortran \
+    pkg-config \
+    libmpich-dev \
+    libopenmpi-dev \
+    liblapack-dev \
+    libblas-dev \
+    libfftw3-dev \
+    libscalapack-openmpi-dev \
+    libnetcdff-dev && \
+    ln -sf /usr/lib/aarch64-linux-gnu/libscalapack-openmpi.so.2.1.0 /usr/lib/libscalapack-openmpi.so.2.1.0 && \
+    ln -sf /usr/lib/aarch64-linux-gnu/libscalapack-openmpi.so /usr/lib/libscalapack-openmpi.so && \
     apt-get clean -y
 
 # Do not install things in user space.
@@ -57,11 +56,11 @@ RUN set -ex && \
     rm -rf siesta-5.4.1.tar.gz && \
     cd siesta-5.4.1 && \
     cmake -S . -B _build \
-        -DCMAKE_INSTALL_PREFIX=/usr/local \
-        -DLIBGRIDXC_WITH_MPI=ON \
-        -DSIESTA_WITH_MPI=ON \
-        -DSCALAPACK_LIBRARY="-lscalapack-openmpi" \
-        -DSIESTA_WITH_FLOOK=OFF && \
+    -DCMAKE_INSTALL_PREFIX=/usr/local \
+    -DLIBGRIDXC_WITH_MPI=ON \
+    -DSIESTA_WITH_MPI=ON \
+    -DSCALAPACK_LIBRARY="-lscalapack-openmpi" \
+    -DSIESTA_WITH_FLOOK=OFF && \
     cmake --build _build -j$(nproc) && \
     cmake --install _build && \
     cd /opt/install && rm -rf siesta-5.4.1
@@ -73,15 +72,6 @@ RUN set -ex && \
 # Optional: install aiida-siesta plugin
 # ----------------------------------------------------------------------
 RUN pip install --no-cache-dir aiida-siesta
-
-RUN cd /opt/install && \
-    git clone https://github.com/aoterodelaroza/critic2.git && \
-    cd /opt/install/critic2 && mkdir build && cd build && \
-    cmake .. && \
-    make && \
-    mv /opt/install/critic2/build/src/critic2 /usr/local/bin/critic2 && \
-    chmod a+rx /usr/local/bin/critic2 && \
-    rm -rf /opt/install/critic2
 
 # Copy from local computer to Docker.
 COPY before-notebook.d/* /usr/local/bin/before-notebook.d/
