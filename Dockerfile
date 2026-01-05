@@ -1,4 +1,4 @@
-FROM aiidalab/full-stack:2025.1025
+FROM aiidalab/full-stack:latest
 
 USER root
 
@@ -11,7 +11,8 @@ ENV ASE_LAMMPSRUN_COMMAND="/usr/bin/lmp_serial"
 RUN mkdir /opt/install
 
 RUN apt-get update -y && \
-    apt-get install -y  cp2k \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y  cp2k \
+                        cmake \
                         libmpich-dev \
                         libopenmpi-dev \
                         build-essential && \
@@ -21,7 +22,6 @@ RUN apt-get update -y && \
 RUN pip config set install.user false
 
 RUN pip install --upgrade --no-cache-dir \
-    cmake \
     cp2k-spm-tools \
     mdtraj \
     nglview \
