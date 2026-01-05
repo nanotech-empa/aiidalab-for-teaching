@@ -13,6 +13,7 @@ RUN mkdir /opt/install
 # ----------------------------------------------------------------------
 RUN apt-get update -y && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    lynx \
     cmake \
     build-essential \
     git \
@@ -76,6 +77,7 @@ RUN pip install --no-cache-dir aiida-siesta
 # Copy from local computer to Docker.
 COPY before-notebook.d/* /usr/local/bin/before-notebook.d/
 COPY configs /opt/configs
+COPY step /usr/local/bin/step
 RUN chmod -R a+rx /opt/configs /usr/local/bin/before-notebook.d/
 
 RUN chown -R ${NB_USER}:users /home/jovyan
