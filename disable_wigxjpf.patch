@@ -1,0 +1,15 @@
+diff --git a/cmake/rascalTools.cmake b/cmake/rascalTools.cmake
+index 9d2c7a0..b123abc 100644
+--- a/cmake/rascalTools.cmake
++++ b/cmake/rascalTools.cmake
+@@ -205,7 +205,11 @@ function(add_external_package pkg)
+     elseif(${pkg} STREQUAL "wigxjpf")
+-        include(cmake/wigxjpf.cmake)
++        if(NOT DEFINED RASCAL_SKIP_WIGXJPF OR NOT RASCAL_SKIP_WIGXJPF)
++            message(STATUS "RASCAL: building bundled wigxjpf")
++            include(cmake/wigxjpf.cmake)
++        else()
++            message(STATUS "RASCAL: skipping bundled wigxjpf (using system one)")
++        endif()
+     endif()
+ endfunction()

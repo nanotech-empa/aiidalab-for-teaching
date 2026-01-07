@@ -2,26 +2,47 @@ FROM aiidalab/full-stack:latest
 
 USER root
 
-ENV PATH="/opt/install/bin:$PATH"
-ENV PYTHONPATH="${PYTHONPATH:-}:/opt/install"
-ENV deepmd_source_dir=/opt/install/deepmd-kit
+# -------------------------------------------------
+# Global environment
+# -------------------------------------------------
 ENV JUPYTER_TERMINAL_IDLE_TIMEOUT=3600
-ENV ASE_LAMMPSRUN_COMMAND="/usr/bin/lmp_serial"
+ENV ASE_LAMMPSRUN_COMMAND=/usr/local/bin/lmp
 
-RUN mkdir /opt/install
+ENV PATH=/opt/install/bin:$PATH
+ENV PYTHONPATH=/opt/install:${PYTHONPATH:-}
 
+RUN mkdir -p /opt/install
+
+# -------------------------------------------------
+# System dependencies
+# -------------------------------------------------
 RUN apt-get update -y && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y  cp2k \
-                        cmake \
-                        libmpich-dev \
-                        libopenmpi-dev \
-                        build-essential && \
-    apt-get clean -y
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
+        ca-certificates \
+        git \
+        curl \
+        unzip \
+        cp2k \
+        cmake \
+        automake \
+        autoconf \
+        build-essential \
+        libmpich-dev \
+        libopenmpi-dev \
+        libblas-dev \
+        liblapack-dev \
+        libgsl-dev \
+        libyaml-cpp-dev \
+        libeigen3-dev \
+        pybind11-dev \
+    && apt-get clean -y && rm -rf /var/lib/apt/lists/*
 
-# Do not install things in user space.
+# -------------------------------------------------
+# Python stack (system-wide, Python 3.9)
+# -------------------------------------------------
 RUN pip config set install.user false
 
-RUN pip install --upgrade --no-cache-dir \
+RUN pip install --no-cache-dir --upgrade \
     cp2k-spm-tools \
     mdtraj \
     nglview \
@@ -35,70 +56,120 @@ RUN pip install --upgrade --no-cache-dir \
     skmatter \
     spglib \
     sympy \
-    tensorflow \
     torch \
     torchmetrics \
     torchvision \
-    xgboost
+    xgboost \
+    mace-torch
 
+# -------------------------------------------------
+# libtorch (CPU, required by pair_style mace)
+# -------------------------------------------------
+#RUN cd /opt/install && \
+#    curl -L https://download.pytorch.org/libtorch/cpu/libtorch-shared-with-deps-2.1.0%2Bcpu.zip \
+#        -o libtorch.zip && \
+#    unzip libtorch.zip && \
+#    rm libtorch.zip
+#
+#ENV LD_LIBRARY_PATH=/opt/install/libtorch/lib:${LD_LIBRARY_PATH:-}
+
+# -------------------------------------------------
+# PLUMED (standalone)
+# -------------------------------------------------
 RUN cd /opt/install && \
-    git clone https://github.com/deepmodeling/deepmd-kit.git deepmd-kit && \
-    pip install ./deepmd-kit
+    git clone https://github.com/plumed/plumed2.git && \
+    cd plumed2 && \
+    ./configure \
+        --prefix=/opt/install/plumed \
+        --enable-modules=all \
+        CC=gcc CXX=g++ FC=gfortran && \
+    make -j$(nproc) && \
+    make install && \
+    rm -rf /opt/install/plumed2
 
-RUN cd $deepmd_source_dir/source && \
-    mkdir build && \
-    cd build
+ENV PATH=/opt/install/plumed/bin:$PATH
+ENV LD_LIBRARY_PATH=/opt/install/plumed/lib:${LD_LIBRARY_PATH}
+ENV PKG_CONFIG_PATH=/opt/install/plumed/lib/pkgconfig:${PKG_CONFIG_PATH:-}
+ENV PLUMED_KERNEL=/opt/install/plumed/lib/libplumedKernel.so
 
-RUN cd $deepmd_source_dir/source/build && \
-    cmake -DUSE_TF_PYTHON_LIBS=TRUE -DCMAKE_INSTALL_PREFIX=$deepmd_source_dir .. && \
-    make && \
-    make install
-
-RUN cd $deepmd_source_dir/source/build && make lammps
-
+# -------------------------------------------------
+# LAMMPS (with PLUMED + MACE)
+# -------------------------------------------------
 RUN cd /opt/install && \
-    git clone https://github.com/lammps/lammps && \
-    cd lammps/src && \
-    cp -r $deepmd_source_dir/source/build/USER-DEEPMD . && \
-    make lib-pace args="-b" && \
-    make yes-molecule && \
-    make yes-reaxff && \
-    make yes-rigid && \
-    make yes-ml-pace && \
-    make yes-manybody && \
-    make lib-voronoi args="-b" && \
-    make yes-voronoi && \
-    make lib-plumed args="-b" CC=gcc CXX=g++ && \
-    make yes-plumed && \
-    make yes-kspace && \
-    make yes-extra-fix && \
-    make yes-user-deepmd && \
-    make serial && \
-    cp /opt/install/lammps/src/lmp_serial /usr/bin/lmp_serial && \
-    rm -rf /opt/install/lammps/
+    git clone https://github.com/empa-scientific-it/lammps.git && \
+    cd lammps && \
+    mkdir build && cd build && \
+    cmake ../cmake \
+        -D CMAKE_INSTALL_PREFIX=/usr/local \
+        -D CMAKE_BUILD_TYPE=Release \
+        -D CMAKE_PREFIX_PATH="/opt/install/libtorch;/opt/install/plumed" \
+        -D CMAKE_C_COMPILER=gcc \
+        -D CMAKE_CXX_COMPILER=g++ \
+        -D CMAKE_Fortran_COMPILER=gfortran \
+        -D BUILD_MPI=ON \
+        -D BUILD_OMP=ON \
+        -D BUILD_SHARED_LIBS=ON \
+        -D PKG_ML-MACE=ON \
+        -D PKG_ML-QUIP=OFF \
+        -D DOWNLOAD_QUIP=OFF \
+        -D PKG_ML-PACE=ON \
+        -D PKG_MANYBODY=ON \
+        -D PKG_BODY=ON \
+        -D PKG_MOLECULE=ON \
+        -D PKG_OPT=ON \
+        -D PKG_KSPACE=ON \
+        -D PKG_RIGID=ON \
+        -D PKG_EXTRA-FIX=ON \
+        -D PKG_PLUMED=ON && \
+    make -j$(nproc) && \
+    make install && \
+    echo "/usr/local/lib" > /etc/ld.so.conf.d/lammps.conf && \
+    ldconfig && \
+    rm -rf /opt/install/lammps
+
+# -------------------------------------------------
+# wigxjpf (system install)
+# -------------------------------------------------
+RUN cd /opt/install && \
+    git clone https://github.com/nd-nuclear-theory/wigxjpf.git && \
+    cd wigxjpf && \
+    make clean && \
+    make -j$(nproc) && \
+    cp lib/libwigxjpf.a /usr/local/lib/ && \
+    make clean && \
+    make -j$(nproc) OMP=1 && \
+    cp lib/libwigxjpf.a /usr/local/lib/libwigxjpfo.a && \
+    cp -r inc/* /usr/local/include/ && \
+    cp gen/wigxjpf_auto_config.h /usr/local/include/
+
+
+# -------------------------------------------------
+# CMake find module for wigxjpf
+# -------------------------------------------------
+COPY Findwigxjpf.cmake /usr/local/lib/cmake/Findwigxjpf.cmake
+
+# -------------------------------------------------
+# librascal (use system wigxjpf via Findwigxjpf.cmake)
+# -------------------------------------------------
+ENV CMAKE_ARGS="\
+-DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+-DCMAKE_PREFIX_PATH=/usr/share/eigen3/cmake:/usr/share/cmake/pybind11"
 
 RUN cd /opt/install && \
     git clone https://github.com/lab-cosmo/librascal.git && \
-    pip install ./librascal
+    cp /usr/local/lib/cmake/Findwigxjpf.cmake librascal/cmake/ && \
+    cd librascal && \
+    pip install . -v
 
-RUN cd /opt/install && \
-    git clone https://github.com/aoterodelaroza/critic2.git && \
-    cd /opt/install/critic2 && mkdir build && cd build && \
-    cmake .. && \
-    make && \
-    mv /opt/install/critic2/build/src/critic2 /usr/local/bin/critic2 && \
-    chmod a+rx /usr/local/bin/critic2 && \
-    rm -rf /opt/install/critic2
-
-# Copy from local computer to Docker.
+# -------------------------------------------------
+# Hooks / configs
+# -------------------------------------------------
 COPY before-notebook.d/* /usr/local/bin/before-notebook.d/
 COPY configs /opt/configs
 RUN chmod -R a+rx /opt/configs /usr/local/bin/before-notebook.d/
 
 RUN chown -R ${NB_USER}:users /home/jovyan
 
-# Switch back to install Python programs to user space.
 RUN pip config set install.user true
 
-# Switch back to the jovyan user.
 USER ${NB_USER}
