@@ -12,23 +12,40 @@ RUN mkdir /opt/install
 # 🧩 System dependencies: CP2K, SIESTA, compilers, math libs, build tools
 # ----------------------------------------------------------------------
 RUN apt-get update -y && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    lynx \
-    cmake \
-    build-essential \
-    git \
-    gfortran \
-    pkg-config \
-    libmpich-dev \
-    libopenmpi-dev \
-    liblapack-dev \
-    libblas-dev \
-    libfftw3-dev \
-    libscalapack-openmpi-dev \
-    libnetcdff-dev && \
-    ln -sf /usr/lib/aarch64-linux-gnu/libscalapack-openmpi.so.2.1.0 /usr/lib/libscalapack-openmpi.so.2.1.0 && \
-    ln -sf /usr/lib/aarch64-linux-gnu/libscalapack-openmpi.so /usr/lib/libscalapack-openmpi.so && \
-    apt-get clean -y
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        cmake \
+        build-essential \
+        git \
+        gfortran \
+        pkg-config \
+        libmpich-dev \
+        libopenmpi-dev \
+        liblapack-dev \
+        libblas-dev \
+        libfftw3-dev \
+        libscalapack-openmpi-dev \
+        libnetcdff-dev \
+        ca-certificates \
+        curl \
+        gpg && \
+    \
+    curl -fsSL https://packages.smallstep.com/keys/apt/repo-signing-key.gpg \
+        -o /etc/apt/trusted.gpg.d/smallstep.asc && \
+    \
+    echo "deb [signed-by=/etc/apt/trusted.gpg.d/smallstep.asc] \
+https://packages.smallstep.com/stable/debian debs main" \
+        > /etc/apt/sources.list.d/smallstep.list && \
+    \
+    apt-get update -y && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        step-cli && \
+    \
+    ln -sf /usr/lib/aarch64-linux-gnu/libscalapack-openmpi.so.2.1.0 \
+           /usr/lib/libscalapack-openmpi.so.2.1.0 && \
+    ln -sf /usr/lib/aarch64-linux-gnu/libscalapack-openmpi.so \
+           /usr/lib/libscalapack-openmpi.so && \
+    \
+    rm -rf /var/lib/apt/lists/*
 
 # Do not install things in user space.
 RUN pip config set install.user false
@@ -77,7 +94,7 @@ RUN pip install --no-cache-dir aiida-siesta
 # Copy from local computer to Docker.
 COPY before-notebook.d/* /usr/local/bin/before-notebook.d/
 COPY configs /opt/configs
-COPY step /usr/local/bin/step
+#COPY step /usr/local/bin/step
 RUN chmod -R a+rx /opt/configs /usr/local/bin/before-notebook.d/
 
 RUN chown -R ${NB_USER}:users /home/jovyan
