@@ -1,0 +1,268 @@
+# Multi-stage Dockerfile for AiiDAlab with LAMMPS+MACE (CPU-only, ARM64-compatible)
+# Based on Eiger.dockerfile pattern, optimized for aiidalab/full-stack base
+
+# ============================
+# Stage 1: Builder
+# ============================
+FROM aiidalab/full-stack:latest AS builder
+
+USER root
+
+# Build args (with defaults matching Eiger.dockerfile)
+ARG PYTORCH_VERSION=2.5.1
+ARG MACE_VERSION=0.3.14
+ARG LAMMPS_REPO=https://github.com/empa-scientific-it/lammps.git
+ARG LAMMPS_BRANCH=mace-features
+
+# -------------------------------------------------
+# Build dependencies
+# -------------------------------------------------
+RUN apt-get update -y && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        ca-certificates \
+        git \
+        curl \
+        unzip \
+        cmake \
+        automake \
+        autoconf \
+        build-essential \
+        openmpi-bin \
+        libopenmpi-dev \
+        libblas-dev \
+        liblapack-dev \
+        libgsl-dev \
+        libeigen3-dev \
+        pybind11-dev \
+        gfortran \
+        pkg-config \
+        wget \
+    && apt-get clean -y && rm -rf /var/lib/apt/lists/*
+
+# -------------------------------------------------
+# Python venv with PyTorch CPU
+# -------------------------------------------------
+ENV VENV=/opt/venv
+RUN python3 -m venv $VENV
+ENV PATH="$VENV/bin:$PATH"
+
+RUN pip install --upgrade pip wheel setuptools && \
+    pip install --no-cache-dir \
+    --index-url https://download.pytorch.org/whl/cpu \
+    torch==${PYTORCH_VERSION} \
+    torchvision \
+    torchaudio
+
+# -------------------------------------------------
+# ABI compatibility flags
+# -------------------------------------------------
+ENV CXXFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0"
+ENV CPPFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0"
+
+# -------------------------------------------------
+# Compile and install yaml-cpp with ABI compatibility flags
+# -------------------------------------------------
+RUN apt-get remove -y libyaml-cpp-dev libyaml-cpp* || true
+RUN cd /opt && \
+    git clone --depth 1 https://github.com/jbeder/yaml-cpp.git && \
+    mkdir -p yaml-cpp/build && cd yaml-cpp/build && \
+    cmake .. \
+        -D CMAKE_BUILD_TYPE=Release \
+        -D YAML_BUILD_SHARED_LIBS=ON \
+        -D CMAKE_CXX_FLAGS="-D_GLIBCXX_USE_CXX11_ABI=0 -fPIC" \
+        -D CMAKE_INSTALL_PREFIX=/usr/local && \
+    make -j$(nproc) && \
+    make install
+
+# -------------------------------------------------
+# Set LD_LIBRARY_PATH for linking
+# -------------------------------------------------
+ENV TORCH_LIB="${VENV}/lib/python3.9/site-packages/torch/lib"
+ENV TORCH_LIBS="${VENV}/lib/python3.9/site-packages/torch.libs"
+# Include both arch paths - linker will use whichever exists
+ENV LD_LIBRARY_PATH="${TORCH_LIB}:${TORCH_LIBS}:/usr/lib/aarch64-linux-gnu:/usr/lib/x86_64-linux-gnu:/usr/local/lib:${LD_LIBRARY_PATH:-}"
+
+# -------------------------------------------------
+# LAMMPS (with PLUMED + MACE)
+# -------------------------------------------------
+RUN cd /opt && \
+    git clone --depth 1 --branch ${LAMMPS_BRANCH} ${LAMMPS_REPO} lammps
+
+WORKDIR /opt/lammps
+
+# Pre-build lib-pace with ABI-compatible flags
+RUN CXXFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0 ${CXXFLAGS}" \
+    CPPFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0 ${CPPFLAGS}" \
+    make -C src lib-pace args="-b"
+
+# Configure & build LAMMPS
+# - Append /usr/local to CMAKE_PREFIX_PATH so it finds our custom yaml-cpp
+# - Add -L/usr/local/lib to flags to force the linker to look there first
+RUN export CXXFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0 ${CXXFLAGS}" \
+    CPPFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0 ${CPPFLAGS}" && \
+    mkdir -p build && cd build && \
+    cmake ../cmake \
+    -D CMAKE_BUILD_TYPE=Release \
+    -D CMAKE_INSTALL_PREFIX=/opt/lammps \
+    -D BUILD_MPI=ON \
+    -D BUILD_OMP=ON \
+    -D BUILD_SHARED_LIBS=ON \
+    -D CMAKE_C_STANDARD=11 \
+    -D CMAKE_CXX_STANDARD=17 \
+    -D CMAKE_CXX_FLAGS="${CXXFLAGS}" \
+    -D CMAKE_SHARED_LINKER_FLAGS="-L/usr/local/lib -Wl,-rpath,/usr/local/lib" \
+    -D CMAKE_EXE_LINKER_FLAGS="-L/usr/local/lib -Wl,-rpath,/usr/local/lib" \
+    -D PKG_ML-MACE=ON \
+    -D PKG_ML-PACE=ON \
+    -D PKG_MANYBODY=ON \
+    -D PKG_BODY=ON \
+    -D PKG_MOLECULE=ON \
+    -D PKG_PLUMED=ON \
+    -D DOWNLOAD_PLUMED=ON \
+    -D PLUMED_MODE=static \
+    -D PKG_ML-QUIP=OFF \
+    -D DOWNLOAD_QUIP=OFF \
+    -D PKG_OPT=ON \
+    -D PKG_KSPACE=ON \
+    -D PKG_RIGID=ON \
+    -D PKG_EXTRA-FIX=ON \
+    -D CMAKE_PREFIX_PATH="/usr/local;$(python -c 'import torch.utils; print(torch.utils.cmake_prefix_path)')" \
+    && cmake --build . -j"$(nproc)" && cmake --install .
+
+# -------------------------------------------------
+# wigxjpf (system install)
+# -------------------------------------------------
+RUN cd /opt && \
+    git clone https://github.com/nd-nuclear-theory/wigxjpf.git && \
+    cd wigxjpf && \
+    make clean && \
+    make -j$(nproc) && \
+    cp lib/libwigxjpf.a /usr/local/lib/ && \
+    make clean && \
+    make -j$(nproc) OMP=1 && \
+    cp lib/libwigxjpf.a /usr/local/lib/libwigxjpfo.a && \
+    cp -r inc/* /usr/local/include/ && \
+    cp gen/wigxjpf_auto_config.h /usr/local/include/
+
+# -------------------------------------------------
+# librascal (with wigxjpf support)
+# -------------------------------------------------
+# Copy the CMake finder that defines the 'wigxjpf' TARGET
+COPY Findwigxjpf.cmake /usr/local/lib/cmake/Findwigxjpf.cmake
+
+# Set up Config mode
+RUN mkdir -p /usr/local/lib/cmake/wigxjpf && \
+    cp /usr/local/lib/cmake/Findwigxjpf.cmake /usr/local/lib/cmake/wigxjpf/wigxjpfConfig.cmake
+
+ENV CMAKE_ARGS="\
+    -DCMAKE_CXX_FLAGS='-D_GLIBCXX_USE_CXX11_ABI=0' \
+    -DCMAKE_PREFIX_PATH='/usr/local;/usr/share/eigen3/cmake;/usr/share/cmake/pybind11'"
+
+# Limit parallelism to 1 job to prevent "Out of Memory" errors during C++ compilation
+ENV CMAKE_BUILD_PARALLEL_LEVEL=1
+
+RUN cd /opt && \
+    git clone https://github.com/lab-cosmo/librascal.git && \
+    cd librascal && \
+    # FIX 1: Bump CMake version (Replace the WHOLE line to avoid regex mismatches)
+    sed -i 's/cmake_minimum_required.*/cmake_minimum_required(VERSION 3.18)/' CMakeLists.txt && \
+    # FIX 2: Inject find_package() (This part was working!)
+    sed -i '/cmake_minimum_required/a find_package(wigxjpf REQUIRED)' CMakeLists.txt && \
+    # FIX 3: Skip downloading wigxjpf
+    echo "" > cmake/wigxjpf.cmake && \
+    # Build
+    pip install . -v
+
+# -------------------------------------------------
+# Install mace-torch and other Python packages
+# -------------------------------------------------
+RUN pip install --no-cache-dir \
+    mace-torch==${MACE_VERSION} \
+    cp2k-spm-tools \
+    mdtraj \
+    nglview \
+    optuna \
+    pandas \
+    plotly==5.24.1 \
+    pymatgen \
+    pythtb \
+    scikit-learn \
+    scikit-image \
+    skmatter \
+    spglib \
+    sympy \
+    torchmetrics \
+    xgboost
+
+# ============================
+# Stage 2: Runtime
+# ============================
+FROM aiidalab/full-stack:latest AS runtime
+
+USER root
+ENV DEBIAN_FRONTEND=noninteractive
+
+# -------------------------------------------------
+# Runtime dependencies
+# -------------------------------------------------
+# We only need shared libraries here (libgsl, openmpi, etc.)
+RUN apt-get update -y && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        cp2k \
+        openmpi-bin \
+        libopenmpi3 \
+        libgsl27 \
+        libgslcblas0 \
+        libblas3 \
+        liblapack3 \
+        libgfortran5 \
+    && apt-get clean -y && rm -rf /var/lib/apt/lists/*
+
+# -------------------------------------------------
+# Global environment
+# -------------------------------------------------
+ENV JUPYTER_TERMINAL_IDLE_TIMEOUT=3600
+ENV ASE_LAMMPSRUN_COMMAND=/opt/lammps/bin/lmp
+ENV PATH=/opt/lammps/bin:/opt/venv/bin:$PATH
+# We add /opt/lammps/lib and /usr/local/lib (for yaml-cpp) to LD path
+ENV LD_LIBRARY_PATH="/opt/lammps/lib:/usr/local/lib:${LD_LIBRARY_PATH:-}"
+
+# -------------------------------------------------
+# Copy from builder
+# -------------------------------------------------
+# 1. Python Environment (contains librascal, mace, torch, etc.)
+COPY --from=builder /opt/venv /opt/venv
+
+# 2. LAMMPS Installation
+COPY --from=builder /opt/lammps /opt/lammps
+
+# 3. Custom Shared Libraries (yaml-cpp)
+# We remove system yaml-cpp first to prevent conflicts, then copy our ABI-0 version
+RUN rm -f /usr/lib/x86_64-linux-gnu/libyaml-cpp.so* /usr/lib/aarch64-linux-gnu/libyaml-cpp.so* || true
+COPY --from=builder /usr/local/lib/libyaml-cpp.so* /usr/local/lib/
+
+# -------------------------------------------------
+# Dynamic Linker Configuration
+# -------------------------------------------------
+# Register all custom paths so we don't strictly rely on LD_LIBRARY_PATH
+RUN printf "%s\n%s\n%s\n%s\n%s\n" \
+    "/usr/local/lib" \
+    "/opt/venv/lib/python3.9/site-packages/torch/lib" \
+    "/opt/venv/lib/python3.9/site-packages/torch.libs" \
+    "/usr/lib/aarch64-linux-gnu" \
+    "/usr/lib/x86_64-linux-gnu" \
+    > /etc/ld.so.conf.d/aiidalab-libs.conf && \
+    ldconfig
+
+# -------------------------------------------------
+# Final Setup
+# -------------------------------------------------
+COPY before-notebook.d/* /usr/local/bin/before-notebook.d/
+COPY configs /opt/configs
+RUN chmod -R a+rx /opt/configs /usr/local/bin/before-notebook.d/
+
+# Restore user permissions
+RUN chown -R ${NB_USER}:users /home/${NB_USER}
+
+USER ${NB_USER}
