@@ -1,5 +1,5 @@
 # Multi-stage Dockerfile for AiiDAlab with LAMMPS+MACE (CPU-only, ARM64-compatible)
-# Based on Eiger.dockerfile pattern, optimized for aiidalab/full-stack base
+# Optimized for aiidalab/full-stack as base image
 
 # ============================
 # Stage 1: Builder
@@ -8,7 +8,7 @@ FROM aiidalab/full-stack:latest AS builder
 
 USER root
 
-# Build args (with defaults matching Eiger.dockerfile)
+# Build args
 ARG PYTORCH_VERSION=2.5.1
 ARG MACE_VERSION=0.3.14
 ARG LAMMPS_REPO=https://github.com/empa-scientific-it/lammps.git
@@ -33,34 +33,39 @@ RUN apt-get update -y && \
         liblapack-dev \
         libgsl-dev \
         libeigen3-dev \
-        pybind11-dev \
         gfortran \
         pkg-config \
         wget \
     && apt-get clean -y && rm -rf /var/lib/apt/lists/*
 
 # -------------------------------------------------
-# Python venv with PyTorch CPU
+# Prepare Conda Environment for Building
 # -------------------------------------------------
-ENV VENV=/opt/venv
-RUN python3 -m venv $VENV
-ENV PATH="$VENV/bin:$PATH"
-
-RUN pip install --upgrade pip wheel setuptools && \
-    pip install --no-cache-dir \
+# 1. Install PyTorch from the specific CPU wheel index
+RUN pip install --no-cache-dir \
     --index-url https://download.pytorch.org/whl/cpu \
     torch==${PYTORCH_VERSION} \
     torchvision \
     torchaudio
 
+# 2. Install build tools from standard PyPI (default index)
+RUN pip install --no-cache-dir \
+    scikit-build \
+    ninja \
+    cmake \
+    pybind11
+
+# Directory to store compiled Python wheels for transfer to Runtime
+RUN mkdir -p /opt/wheels
+
 # -------------------------------------------------
-# ABI compatibility flags
+# ABI compatibility flags (Global)
 # -------------------------------------------------
 ENV CXXFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0"
 ENV CPPFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0"
 
 # -------------------------------------------------
-# Compile and install yaml-cpp with ABI compatibility flags
+# yaml-cpp (Manual build for ABI compatibility)
 # -------------------------------------------------
 RUN apt-get remove -y libyaml-cpp-dev libyaml-cpp* || true
 RUN cd /opt && \
@@ -75,29 +80,19 @@ RUN cd /opt && \
     make install
 
 # -------------------------------------------------
-# Set LD_LIBRARY_PATH for linking
-# -------------------------------------------------
-ENV TORCH_LIB="${VENV}/lib/python3.9/site-packages/torch/lib"
-ENV TORCH_LIBS="${VENV}/lib/python3.9/site-packages/torch.libs"
-# Include both arch paths - linker will use whichever exists
-ENV LD_LIBRARY_PATH="${TORCH_LIB}:${TORCH_LIBS}:/usr/lib/aarch64-linux-gnu:/usr/lib/x86_64-linux-gnu:/usr/local/lib:${LD_LIBRARY_PATH:-}"
-
-# -------------------------------------------------
-# LAMMPS (with PLUMED + MACE)
+# LAMMPS (Compile C++ & Build Python Wheel)
 # -------------------------------------------------
 RUN cd /opt && \
     git clone --depth 1 --branch ${LAMMPS_BRANCH} ${LAMMPS_REPO} lammps
 
 WORKDIR /opt/lammps
 
-# Pre-build lib-pace with ABI-compatible flags
+# 1. Pre-build lib-pace
 RUN CXXFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0 ${CXXFLAGS}" \
     CPPFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0 ${CPPFLAGS}" \
     make -C src lib-pace args="-b"
 
-# Configure & build LAMMPS
-# - Append /usr/local to CMAKE_PREFIX_PATH so it finds our custom yaml-cpp
-# - Add -L/usr/local/lib to flags to force the linker to look there first
+# 2. Configure & Build LAMMPS C++
 RUN export CXXFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0 ${CXXFLAGS}" \
     CPPFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0 ${CPPFLAGS}" && \
     mkdir -p build && cd build && \
@@ -126,11 +121,19 @@ RUN export CXXFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0 ${CXXFLAGS}" \
     -D PKG_KSPACE=ON \
     -D PKG_RIGID=ON \
     -D PKG_EXTRA-FIX=ON \
-    -D CMAKE_PREFIX_PATH="/usr/local;$(python -c 'import torch.utils; print(torch.utils.cmake_prefix_path)')" \
-    && cmake --build . -j"$(nproc)" && cmake --install .
+    -D CMAKE_PREFIX_PATH="/usr/local;/opt/conda;$(python -c 'import torch.utils; print(torch.utils.cmake_prefix_path)')" \
+    && cmake --build . -j"$(nproc)" && cmake --install . && \
+    # 3. Build Python Wheel (Saved to /opt/wheels)
+    cd /opt/lammps && \
+    python python/install.py \
+        -n \
+        -p python/lammps \
+        -l build/liblammps.so \
+        -v src/version.h \
+        -w /opt/wheels
 
 # -------------------------------------------------
-# wigxjpf (system install)
+# wigxjpf (Static build for librascal)
 # -------------------------------------------------
 RUN cd /opt && \
     git clone https://github.com/nd-nuclear-theory/wigxjpf.git && \
@@ -145,38 +148,91 @@ RUN cd /opt && \
     cp gen/wigxjpf_auto_config.h /usr/local/include/
 
 # -------------------------------------------------
-# librascal (with wigxjpf support)
+# librascal (Build Python Wheel)
 # -------------------------------------------------
-# Copy the CMake finder that defines the 'wigxjpf' TARGET
 COPY Findwigxjpf.cmake /usr/local/lib/cmake/Findwigxjpf.cmake
-
-# Set up Config mode
 RUN mkdir -p /usr/local/lib/cmake/wigxjpf && \
     cp /usr/local/lib/cmake/Findwigxjpf.cmake /usr/local/lib/cmake/wigxjpf/wigxjpfConfig.cmake
 
-ENV CMAKE_ARGS="\
-    -DCMAKE_CXX_FLAGS='-D_GLIBCXX_USE_CXX11_ABI=0' \
-    -DCMAKE_PREFIX_PATH='/usr/local;/usr/share/eigen3/cmake;/usr/share/cmake/pybind11'"
-
-# Limit parallelism to 1 job to prevent "Out of Memory" errors during C++ compilation
+# Limit parallelism to 1 job to prevent OOM
 ENV CMAKE_BUILD_PARALLEL_LEVEL=1
 
 RUN cd /opt && \
     git clone https://github.com/lab-cosmo/librascal.git && \
     cd librascal && \
-    # FIX 1: Bump CMake version (Replace the WHOLE line to avoid regex mismatches)
+    # FIX 1: Bump CMake version
     sed -i 's/cmake_minimum_required.*/cmake_minimum_required(VERSION 3.18)/' CMakeLists.txt && \
-    # FIX 2: Inject find_package() (This part was working!)
+    # FIX 2: Inject find_package for wigxjpf and pybind11
     sed -i '/cmake_minimum_required/a find_package(wigxjpf REQUIRED)' CMakeLists.txt && \
-    # FIX 3: Skip downloading wigxjpf
+    sed -i '/cmake_minimum_required/a find_package(pybind11 REQUIRED)' CMakeLists.txt && \
+    # FIX 3: Neutralize download scripts
     echo "" > cmake/wigxjpf.cmake && \
-    # Build
-    pip install . -v
+    echo "" > cmake/pybind11.cmake && \
+    # FIX 4: pybind11 path for Cmake files
+    # Python knows exactly where pybind11Config.cmake is. We ask it.
+    PYBIND11_CMAKE_DIR=$(python -c 'import pybind11; print(pybind11.get_cmake_dir())') && \
+    # We explicitly add that directory to CMAKE_PREFIX_PATH
+    export CMAKE_ARGS="-DCMAKE_CXX_FLAGS='-D_GLIBCXX_USE_CXX11_ABI=0' \
+    -DCMAKE_PREFIX_PATH='/usr/local;/usr/share/eigen3/cmake;/usr/share/cmake/pybind11;/opt/conda;$PYBIND11_CMAKE_DIR'" && \
+    # Build Wheel
+    pip wheel . --no-deps -w /opt/wheels -v
+
+
+# ============================
+# Stage 2: Runtime
+# ============================
+FROM aiidalab/full-stack:latest AS runtime
+
+USER root
+ENV DEBIAN_FRONTEND=noninteractive
 
 # -------------------------------------------------
-# Install mace-torch and other Python packages
+# Runtime dependencies
 # -------------------------------------------------
+# FIX 1: Install missing system libraries detected by ldd
+# - libopenblas-base: Provides libopenblas.so.0
+# - libjpeg9: Provides libjpeg.so.9 (required by torchvision/lammps tools)
+# - libgomp1: OpenMP support (usually present, but good to be safe)
+RUN apt-get update -y && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        cp2k \
+        openmpi-bin \
+        libopenmpi3 \
+        libgsl27 \
+        libgslcblas0 \
+        libblas3 \
+        liblapack3 \
+        libgfortran5 \
+        libopenblas-base \
+        libjpeg9 \
+        libgomp1 \
+    && apt-get clean -y && rm -rf /var/lib/apt/lists/*
+
+# -------------------------------------------------
+# Copy Artifacts from Builder
+# -------------------------------------------------
+# 1. Compiled Binaries (Lammps executable & libs)
+COPY --from=builder /opt/lammps /opt/lammps
+
+# 2. Custom ABI yaml-cpp
+RUN rm -f /usr/lib/x86_64-linux-gnu/libyaml-cpp.so* /usr/lib/aarch64-linux-gnu/libyaml-cpp.so* || true
+COPY --from=builder /usr/local/lib/libyaml-cpp.so* /usr/local/lib/
+
+# 3. Python Wheels
+COPY --from=builder /opt/wheels /opt/wheels
+
+# -------------------------------------------------
+# Install Python Stack into Conda
+# -------------------------------------------------
+ARG PYTORCH_VERSION=2.5.1
+ARG MACE_VERSION=0.3.14
+
+# Install Packages
 RUN pip install --no-cache-dir \
+    --index-url https://download.pytorch.org/whl/cpu \
+    torch==${PYTORCH_VERSION} torchvision torchaudio && \
+    pip install --no-cache-dir \
     mace-torch==${MACE_VERSION} \
     cp2k-spm-tools \
     mdtraj \
@@ -192,77 +248,46 @@ RUN pip install --no-cache-dir \
     spglib \
     sympy \
     torchmetrics \
-    xgboost
-
-# ============================
-# Stage 2: Runtime
-# ============================
-FROM aiidalab/full-stack:latest AS runtime
-
-USER root
-ENV DEBIAN_FRONTEND=noninteractive
+    xgboost && \
+    pip install --no-cache-dir /opt/wheels/*.whl && \
+    rm -rf /opt/wheels
 
 # -------------------------------------------------
-# Runtime dependencies
+# Linker Configuration (The Fix)
 # -------------------------------------------------
-# We only need shared libraries here (libgsl, openmpi, etc.)
-RUN apt-get update -y && \
-    apt-get install -y --no-install-recommends \
-        ca-certificates \
-        cp2k \
-        openmpi-bin \
-        libopenmpi3 \
-        libgsl27 \
-        libgslcblas0 \
-        libblas3 \
-        liblapack3 \
-        libgfortran5 \
-    && apt-get clean -y && rm -rf /var/lib/apt/lists/*
-
-# -------------------------------------------------
-# Global environment
-# -------------------------------------------------
-ENV JUPYTER_TERMINAL_IDLE_TIMEOUT=3600
-ENV ASE_LAMMPSRUN_COMMAND=/opt/lammps/bin/lmp
-ENV PATH=/opt/lammps/bin:/opt/venv/bin:$PATH
-# We add /opt/lammps/lib and /usr/local/lib (for yaml-cpp) to LD path
-ENV LD_LIBRARY_PATH="/opt/lammps/lib:/usr/local/lib:${LD_LIBRARY_PATH:-}"
-
-# -------------------------------------------------
-# Copy from builder
-# -------------------------------------------------
-# 1. Python Environment (contains librascal, mace, torch, etc.)
-COPY --from=builder /opt/venv /opt/venv
-
-# 2. LAMMPS Installation
-COPY --from=builder /opt/lammps /opt/lammps
-
-# 3. Custom Shared Libraries (yaml-cpp)
-# We remove system yaml-cpp first to prevent conflicts, then copy our ABI-0 version
-RUN rm -f /usr/lib/x86_64-linux-gnu/libyaml-cpp.so* /usr/lib/aarch64-linux-gnu/libyaml-cpp.so* || true
-COPY --from=builder /usr/local/lib/libyaml-cpp.so* /usr/local/lib/
-
-# -------------------------------------------------
-# Dynamic Linker Configuration
-# -------------------------------------------------
-# Register all custom paths so we don't strictly rely on LD_LIBRARY_PATH
-RUN printf "%s\n%s\n%s\n%s\n%s\n" \
+# FIX 2: Use Python to find the exact location of Torch libraries
+RUN TORCH_LIB_DIR=$(python3 -c "import torch; import os; print(os.path.join(os.path.dirname(torch.__file__), 'lib'))") && \
+    # Verify it exists
+    if [ ! -d "$TORCH_LIB_DIR" ]; then echo "FATAL: Torch lib dir not found at $TORCH_LIB_DIR"; exit 1; fi && \
+    # Create the dynamic linker config
+    printf "%s\n%s\n%s\n%s\n%s\n" \
     "/usr/local/lib" \
-    "/opt/venv/lib/python3.9/site-packages/torch/lib" \
-    "/opt/venv/lib/python3.9/site-packages/torch.libs" \
+    "$TORCH_LIB_DIR" \
+    "/opt/lammps/lib" \
     "/usr/lib/aarch64-linux-gnu" \
     "/usr/lib/x86_64-linux-gnu" \
     > /etc/ld.so.conf.d/aiidalab-libs.conf && \
     ldconfig
 
 # -------------------------------------------------
-# Final Setup
+# Environment Setup
+# -------------------------------------------------
+ENV JUPYTER_TERMINAL_IDLE_TIMEOUT=3600
+ENV ASE_LAMMPSRUN_COMMAND=/opt/lammps/bin/lmp
+ENV PATH=/opt/lammps/bin:$PATH
+
+# FIX 3: Also update LD_LIBRARY_PATH dynamically?
+# Unfortunately, ENV cannot run shell commands.
+# We rely on ld.so.conf (above) for system linking.
+# We set a "best guess" fallback here for non-standard shells.
+ENV LD_LIBRARY_PATH="/opt/lammps/lib:/usr/local/lib:${LD_LIBRARY_PATH:-}"
+
+# -------------------------------------------------
+# Final Configs
 # -------------------------------------------------
 COPY before-notebook.d/* /usr/local/bin/before-notebook.d/
 COPY configs /opt/configs
 RUN chmod -R a+rx /opt/configs /usr/local/bin/before-notebook.d/
 
-# Restore user permissions
 RUN chown -R ${NB_USER}:users /home/${NB_USER}
-
 USER ${NB_USER}
