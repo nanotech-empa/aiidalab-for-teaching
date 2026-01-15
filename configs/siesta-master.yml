@@ -1,0 +1,12 @@
+append_text: ''
+computer: g100
+default_calc_job_plugin: siesta
+description: ''
+filepath_executable: /cineca/prod/opt/applications/siesta/4.1.5/intelmpi--oneapi-2021--binary/bin/siesta-master
+label: siesta
+prepend_text: |
+  module purge
+  module load profile/chem-phys
+  module load autoload
+  module load siesta/4.1.5
+use_double_quotes: 'False'
