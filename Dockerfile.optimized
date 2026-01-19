@@ -15,24 +15,27 @@ ARG LAMMPS_BRANCH=mace-features
 # Build dependencies
 RUN apt-get update -y && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        ca-certificates \
-        git \
-        curl \
-        unzip \
-        cmake \
-        automake \
-        autoconf \
-        build-essential \
-        openmpi-bin \
-        libopenmpi-dev \
-        libblas-dev \
-        liblapack-dev \
-        libgsl-dev \
-        libeigen3-dev \
-        gfortran \
-        pkg-config \
-        wget \
+    ca-certificates \
+    git \
+    curl \
+    unzip \
+    cmake \
+    automake \
+    autoconf \
+    build-essential \
+    openmpi-bin \
+    libopenmpi-dev \
+    libblas-dev \
+    liblapack-dev \
+    libgsl-dev \
+    libeigen3-dev \
+    gfortran \
+    pkg-config \
+    wget \
     && apt-get clean -y && rm -rf /var/lib/apt/lists/*
+
+# Disable pip install in user folder
+RUN pip config set install.user false
 
 # PyTorch from CPU wheel index
 RUN pip install --no-cache-dir \
@@ -60,10 +63,10 @@ RUN cd /opt && \
     git clone --depth 1 https://github.com/jbeder/yaml-cpp.git && \
     mkdir -p yaml-cpp/build && cd yaml-cpp/build && \
     cmake .. \
-        -D CMAKE_BUILD_TYPE=Release \
-        -D YAML_BUILD_SHARED_LIBS=ON \
-        -D CMAKE_CXX_FLAGS="-D_GLIBCXX_USE_CXX11_ABI=0 -fPIC" \
-        -D CMAKE_INSTALL_PREFIX=/usr/local && \
+    -D CMAKE_BUILD_TYPE=Release \
+    -D YAML_BUILD_SHARED_LIBS=ON \
+    -D CMAKE_CXX_FLAGS="-D_GLIBCXX_USE_CXX11_ABI=0 -fPIC" \
+    -D CMAKE_INSTALL_PREFIX=/usr/local && \
     make -j$(nproc) && \
     make install
 
@@ -111,11 +114,11 @@ RUN export CXXFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0 ${CXXFLAGS}" \
     && cmake --build . -j"$(nproc)" && cmake --install . && \
     cd /opt/lammps && \
     python python/install.py \
-        -n \
-        -p python/lammps \
-        -l build/liblammps.so \
-        -v src/version.h \
-        -w /opt/wheels
+    -n \
+    -p python/lammps \
+    -l build/liblammps.so \
+    -v src/version.h \
+    -w /opt/wheels
 
 # wigxjpf: static lib for librascal
 RUN cd /opt && \
@@ -162,18 +165,18 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Runtime libs (libopenblas, libjpeg9 for torchvision)
 RUN apt-get update -y && \
     apt-get install -y --no-install-recommends \
-        ca-certificates \
-        cp2k \
-        openmpi-bin \
-        libopenmpi3 \
-        libgsl27 \
-        libgslcblas0 \
-        libblas3 \
-        liblapack3 \
-        libgfortran5 \
-        libopenblas-base \
-        libjpeg9 \
-        libgomp1 \
+    ca-certificates \
+    cp2k \
+    openmpi-bin \
+    libopenmpi3 \
+    libgsl27 \
+    libgslcblas0 \
+    libblas3 \
+    liblapack3 \
+    libgfortran5 \
+    libopenblas-base \
+    libjpeg9 \
+    libgomp1 \
     && apt-get clean -y && rm -rf /var/lib/apt/lists/*
 
 # Copy compiled artifacts
@@ -234,4 +237,8 @@ COPY configs /opt/configs
 RUN chmod -R a+rx /opt/configs /usr/local/bin/before-notebook.d/
 
 RUN chown -R ${NB_USER}:users /home/${NB_USER}
+
+# Disable pip install in user folder
+RUN pip config set install.user false
+
 USER ${NB_USER}
