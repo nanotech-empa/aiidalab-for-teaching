@@ -1,48 +1,202 @@
-FROM aiidalab/full-stack:latest
+# Multi-stage build: AiiDAlab + LAMMPS+MACE (CPU, ARM64-compatible)
+
+# ============================
+# Stage 1: Builder
+# ============================
+FROM aiidalab/full-stack:latest AS builder
 
 USER root
 
-# -------------------------------------------------
-# Global environment
-# -------------------------------------------------
-ENV JUPYTER_TERMINAL_IDLE_TIMEOUT=3600
-ENV ASE_LAMMPSRUN_COMMAND=/usr/local/bin/lmp
+ARG PYTORCH_VERSION=2.5.1
+ARG MACE_VERSION=0.3.14
+ARG LAMMPS_REPO=https://github.com/empa-scientific-it/lammps.git
+ARG LAMMPS_BRANCH=mace-features
 
-ENV PATH=/opt/install/bin:$PATH
-ENV PYTHONPATH=/opt/install:${PYTHONPATH:-}
-
-RUN mkdir -p /opt/install
-
-# -------------------------------------------------
-# System dependencies
-# -------------------------------------------------
+# Build dependencies
 RUN apt-get update -y && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y \
-        ca-certificates \
-        git \
-        curl \
-        unzip \
-        cp2k \
-        cmake \
-        automake \
-        autoconf \
-        build-essential \
-        libmpich-dev \
-        libopenmpi-dev \
-        libblas-dev \
-        liblapack-dev \
-        libgsl-dev \
-        libyaml-cpp-dev \
-        libeigen3-dev \
-        pybind11-dev \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    ca-certificates \
+    git \
+    curl \
+    unzip \
+    cmake \
+    automake \
+    autoconf \
+    build-essential \
+    openmpi-bin \
+    libopenmpi-dev \
+    libblas-dev \
+    liblapack-dev \
+    libgsl-dev \
+    libeigen3-dev \
+    gfortran \
+    pkg-config \
+    wget \
     && apt-get clean -y && rm -rf /var/lib/apt/lists/*
 
-# -------------------------------------------------
-# Python stack (system-wide, Python 3.9)
-# -------------------------------------------------
+# Disable pip install in user folder
 RUN pip config set install.user false
 
-RUN pip install --no-cache-dir --upgrade \
+# PyTorch from CPU wheel index
+RUN pip install --no-cache-dir \
+    --index-url https://download.pytorch.org/whl/cpu \
+    torch==${PYTORCH_VERSION} \
+    torchvision \
+    torchaudio
+
+# Build tools
+RUN pip install --no-cache-dir \
+    scikit-build \
+    ninja \
+    cmake \
+    pybind11
+
+RUN mkdir -p /opt/wheels
+
+# ABI compatibility flags
+ENV CXXFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0"
+ENV CPPFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0"
+
+# yaml-cpp: manual build for ABI compatibility
+RUN apt-get remove -y libyaml-cpp-dev libyaml-cpp* || true
+RUN cd /opt && \
+    git clone --depth 1 https://github.com/jbeder/yaml-cpp.git && \
+    mkdir -p yaml-cpp/build && cd yaml-cpp/build && \
+    cmake .. \
+    -D CMAKE_BUILD_TYPE=Release \
+    -D YAML_BUILD_SHARED_LIBS=ON \
+    -D CMAKE_CXX_FLAGS="-D_GLIBCXX_USE_CXX11_ABI=0 -fPIC" \
+    -D CMAKE_INSTALL_PREFIX=/usr/local && \
+    make -j$(nproc) && \
+    make install
+
+# LAMMPS: clone custom branch
+RUN cd /opt && \
+    git clone --depth 1 --branch ${LAMMPS_BRANCH} ${LAMMPS_REPO} lammps
+
+WORKDIR /opt/lammps
+
+# Pre-build lib-pace
+RUN CXXFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0 ${CXXFLAGS}" \
+    CPPFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0 ${CPPFLAGS}" \
+    make -C src lib-pace args="-b"
+
+# Build LAMMPS C++ and Python wheel
+RUN export CXXFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0 ${CXXFLAGS}" \
+    CPPFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0 ${CPPFLAGS}" && \
+    mkdir -p build && cd build && \
+    cmake ../cmake \
+    -D CMAKE_BUILD_TYPE=Release \
+    -D CMAKE_INSTALL_PREFIX=/opt/lammps \
+    -D BUILD_MPI=ON \
+    -D BUILD_OMP=ON \
+    -D BUILD_SHARED_LIBS=ON \
+    -D CMAKE_C_STANDARD=11 \
+    -D CMAKE_CXX_STANDARD=17 \
+    -D CMAKE_CXX_FLAGS="${CXXFLAGS}" \
+    -D CMAKE_SHARED_LINKER_FLAGS="-L/usr/local/lib -Wl,-rpath,/usr/local/lib" \
+    -D CMAKE_EXE_LINKER_FLAGS="-L/usr/local/lib -Wl,-rpath,/usr/local/lib" \
+    -D PKG_ML-MACE=ON \
+    -D PKG_ML-PACE=ON \
+    -D PKG_MANYBODY=ON \
+    -D PKG_BODY=ON \
+    -D PKG_MOLECULE=ON \
+    -D PKG_PLUMED=ON \
+    -D DOWNLOAD_PLUMED=ON \
+    -D PLUMED_MODE=static \
+    -D PKG_ML-QUIP=OFF \
+    -D DOWNLOAD_QUIP=OFF \
+    -D PKG_OPT=ON \
+    -D PKG_KSPACE=ON \
+    -D PKG_RIGID=ON \
+    -D PKG_EXTRA-FIX=ON \
+    -D CMAKE_PREFIX_PATH="/usr/local;/opt/conda;$(python -c 'import torch.utils; print(torch.utils.cmake_prefix_path)')" \
+    && cmake --build . -j"$(nproc)" && cmake --install . && \
+    cd /opt/lammps && \
+    python python/install.py \
+    -n \
+    -p python/lammps \
+    -l build/liblammps.so \
+    -v src/version.h \
+    -w /opt/wheels
+
+# wigxjpf: static lib for librascal
+RUN cd /opt && \
+    git clone https://github.com/nd-nuclear-theory/wigxjpf.git && \
+    cd wigxjpf && \
+    make clean && \
+    make -j$(nproc) && \
+    cp lib/libwigxjpf.a /usr/local/lib/ && \
+    make clean && \
+    make -j$(nproc) OMP=1 && \
+    cp lib/libwigxjpf.a /usr/local/lib/libwigxjpfo.a && \
+    cp -r inc/* /usr/local/include/ && \
+    cp gen/wigxjpf_auto_config.h /usr/local/include/
+
+# librascal: CMake fixes + build wheel
+COPY Findwigxjpf.cmake /usr/local/lib/cmake/Findwigxjpf.cmake
+RUN mkdir -p /usr/local/lib/cmake/wigxjpf && \
+    cp /usr/local/lib/cmake/Findwigxjpf.cmake /usr/local/lib/cmake/wigxjpf/wigxjpfConfig.cmake
+
+ENV CMAKE_BUILD_PARALLEL_LEVEL=1
+
+RUN cd /opt && \
+    git clone https://github.com/lab-cosmo/librascal.git && \
+    cd librascal && \
+    sed -i 's/cmake_minimum_required.*/cmake_minimum_required(VERSION 3.18)/' CMakeLists.txt && \
+    sed -i '/cmake_minimum_required/a find_package(wigxjpf REQUIRED)' CMakeLists.txt && \
+    sed -i '/cmake_minimum_required/a find_package(pybind11 REQUIRED)' CMakeLists.txt && \
+    echo "" > cmake/wigxjpf.cmake && \
+    echo "" > cmake/pybind11.cmake && \
+    PYBIND11_CMAKE_DIR=$(python -c 'import pybind11; print(pybind11.get_cmake_dir())') && \
+    export CMAKE_ARGS="-DCMAKE_CXX_FLAGS='-D_GLIBCXX_USE_CXX11_ABI=0' \
+    -DCMAKE_PREFIX_PATH='/usr/local;/usr/share/eigen3/cmake;/usr/share/cmake/pybind11;/opt/conda;$PYBIND11_CMAKE_DIR'" && \
+    pip wheel . --no-deps -w /opt/wheels -v
+
+
+# ============================
+# Stage 2: Runtime
+# ============================
+FROM aiidalab/full-stack:latest AS runtime
+
+USER root
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Runtime libs (libopenblas, libjpeg9 for torchvision)
+RUN apt-get update -y && \
+    apt-get install -y --no-install-recommends \
+    ca-certificates \
+    cp2k \
+    openmpi-bin \
+    libopenmpi3 \
+    libgsl27 \
+    libgslcblas0 \
+    libblas3 \
+    liblapack3 \
+    libgfortran5 \
+    libopenblas-base \
+    libjpeg9 \
+    libgomp1 \
+    && apt-get clean -y && rm -rf /var/lib/apt/lists/*
+
+# Copy compiled artifacts
+COPY --from=builder /opt/lammps /opt/lammps
+
+# Custom ABI yaml-cpp
+RUN rm -f /usr/lib/x86_64-linux-gnu/libyaml-cpp.so* /usr/lib/aarch64-linux-gnu/libyaml-cpp.so* || true
+COPY --from=builder /usr/local/lib/libyaml-cpp.so* /usr/local/lib/
+
+COPY --from=builder /opt/wheels /opt/wheels
+
+ARG PYTORCH_VERSION=2.5.1
+ARG MACE_VERSION=0.3.14
+
+# Install Python packages + wheels
+RUN pip install --no-cache-dir \
+    --index-url https://download.pytorch.org/whl/cpu \
+    torch==${PYTORCH_VERSION} torchvision torchaudio && \
+    pip install --no-cache-dir \
+    mace-torch==${MACE_VERSION} \
     cp2k-spm-tools \
     mdtraj \
     nglview \
@@ -56,120 +210,35 @@ RUN pip install --no-cache-dir --upgrade \
     skmatter \
     spglib \
     sympy \
-    torch \
     torchmetrics \
-    torchvision \
-    xgboost \
-    mace-torch
+    xgboost && \
+    pip install --no-cache-dir /opt/wheels/*.whl && \
+    rm -rf /opt/wheels
 
-# -------------------------------------------------
-# libtorch (CPU, required by pair_style mace)
-# -------------------------------------------------
-#RUN cd /opt/install && \
-#    curl -L https://download.pytorch.org/libtorch/cpu/libtorch-shared-with-deps-2.1.0%2Bcpu.zip \
-#        -o libtorch.zip && \
-#    unzip libtorch.zip && \
-#    rm libtorch.zip
-#
-#ENV LD_LIBRARY_PATH=/opt/install/libtorch/lib:${LD_LIBRARY_PATH:-}
+# Dynamic linker config (critical for torch libs)
+RUN TORCH_LIB_DIR=$(python3 -c "import torch; import os; print(os.path.join(os.path.dirname(torch.__file__), 'lib'))") && \
+    if [ ! -d "$TORCH_LIB_DIR" ]; then echo "FATAL: Torch lib dir not found at $TORCH_LIB_DIR"; exit 1; fi && \
+    printf "%s\n%s\n%s\n%s\n%s\n" \
+    "/usr/local/lib" \
+    "$TORCH_LIB_DIR" \
+    "/opt/lammps/lib" \
+    "/usr/lib/aarch64-linux-gnu" \
+    "/usr/lib/x86_64-linux-gnu" \
+    > /etc/ld.so.conf.d/aiidalab-libs.conf && \
+    ldconfig
 
-# -------------------------------------------------
-# PLUMED (standalone)
-# -------------------------------------------------
-RUN cd /opt/install && \
-    git clone https://github.com/plumed/plumed2.git && \
-    cd plumed2 && \
-    ./configure \
-        --prefix=/opt/install/plumed \
-        --enable-modules=all \
-        CC=gcc CXX=g++ FC=gfortran && \
-    make -j$(nproc) && \
-    make install && \
-    rm -rf /opt/install/plumed2
+ENV JUPYTER_TERMINAL_IDLE_TIMEOUT=3600
+ENV ASE_LAMMPSRUN_COMMAND=/opt/lammps/bin/lmp
+ENV PATH=/opt/lammps/bin:$PATH
+ENV LD_LIBRARY_PATH="/opt/lammps/lib:/usr/local/lib:${LD_LIBRARY_PATH:-}"
 
-ENV PATH=/opt/install/plumed/bin:$PATH
-ENV LD_LIBRARY_PATH=/opt/install/plumed/lib:${LD_LIBRARY_PATH}
-ENV PKG_CONFIG_PATH=/opt/install/plumed/lib/pkgconfig:${PKG_CONFIG_PATH:-}
-ENV PLUMED_KERNEL=/opt/install/plumed/lib/libplumedKernel.so
-
-# -------------------------------------------------
-# LAMMPS (with PLUMED + MACE)
-# -------------------------------------------------
-RUN cd /opt/install && \
-    git clone https://github.com/empa-scientific-it/lammps.git && \
-    cd lammps && \
-    mkdir build && cd build && \
-    cmake ../cmake \
-        -D CMAKE_INSTALL_PREFIX=/usr/local \
-        -D CMAKE_BUILD_TYPE=Release \
-        -D CMAKE_PREFIX_PATH="/opt/install/libtorch;/opt/install/plumed" \
-        -D CMAKE_C_COMPILER=gcc \
-        -D CMAKE_CXX_COMPILER=g++ \
-        -D CMAKE_Fortran_COMPILER=gfortran \
-        -D BUILD_MPI=ON \
-        -D BUILD_OMP=ON \
-        -D BUILD_SHARED_LIBS=ON \
-        -D PKG_ML-MACE=ON \
-        -D PKG_ML-QUIP=OFF \
-        -D DOWNLOAD_QUIP=OFF \
-        -D PKG_ML-PACE=ON \
-        -D PKG_MANYBODY=ON \
-        -D PKG_BODY=ON \
-        -D PKG_MOLECULE=ON \
-        -D PKG_OPT=ON \
-        -D PKG_KSPACE=ON \
-        -D PKG_RIGID=ON \
-        -D PKG_EXTRA-FIX=ON \
-        -D PKG_PLUMED=ON && \
-    make -j$(nproc) && \
-    make install && \
-    echo "/usr/local/lib" > /etc/ld.so.conf.d/lammps.conf && \
-    ldconfig && \
-    rm -rf /opt/install/lammps
-
-# -------------------------------------------------
-# wigxjpf (system install)
-# -------------------------------------------------
-RUN cd /opt/install && \
-    git clone https://github.com/nd-nuclear-theory/wigxjpf.git && \
-    cd wigxjpf && \
-    make clean && \
-    make -j$(nproc) && \
-    cp lib/libwigxjpf.a /usr/local/lib/ && \
-    make clean && \
-    make -j$(nproc) OMP=1 && \
-    cp lib/libwigxjpf.a /usr/local/lib/libwigxjpfo.a && \
-    cp -r inc/* /usr/local/include/ && \
-    cp gen/wigxjpf_auto_config.h /usr/local/include/
-
-
-# -------------------------------------------------
-# CMake find module for wigxjpf
-# -------------------------------------------------
-COPY Findwigxjpf.cmake /usr/local/lib/cmake/Findwigxjpf.cmake
-
-# -------------------------------------------------
-# librascal (use system wigxjpf via Findwigxjpf.cmake)
-# -------------------------------------------------
-ENV CMAKE_ARGS="\
--DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
--DCMAKE_PREFIX_PATH=/usr/share/eigen3/cmake:/usr/share/cmake/pybind11"
-
-RUN cd /opt/install && \
-    git clone https://github.com/lab-cosmo/librascal.git && \
-    cp /usr/local/lib/cmake/Findwigxjpf.cmake librascal/cmake/ && \
-    cd librascal && \
-    pip install . -v
-
-# -------------------------------------------------
-# Hooks / configs
-# -------------------------------------------------
 COPY before-notebook.d/* /usr/local/bin/before-notebook.d/
 COPY configs /opt/configs
 RUN chmod -R a+rx /opt/configs /usr/local/bin/before-notebook.d/
 
-RUN chown -R ${NB_USER}:users /home/jovyan
+RUN chown -R ${NB_USER}:users /home/${NB_USER}
 
-RUN pip config set install.user true
+# Disable pip install in user folder
+RUN pip config set install.user false
 
 USER ${NB_USER}
