@@ -48,7 +48,7 @@ RUN pip install --no-cache-dir \
 RUN pip install --no-cache-dir \
     scikit-build \
     ninja \
-    cmake \
+    cmake==3.28.1 \
     pybind11
 
 RUN mkdir -p /opt/wheels
