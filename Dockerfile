@@ -34,9 +34,6 @@ RUN apt-get update -y && \
     wget \
     && apt-get clean -y && rm -rf /var/lib/apt/lists/*
 
-# Disable pip install in user folder
-RUN pip config set install.user false
-
 # PyTorch from CPU wheel index
 RUN pip install --no-cache-dir \
     --index-url https://download.pytorch.org/whl/cpu \
@@ -157,6 +154,7 @@ RUN cd /opt && \
 # ============================
 # Stage 2: Runtime
 # ============================
+
 FROM aiidalab/full-stack:latest AS runtime
 
 USER root
@@ -190,6 +188,9 @@ COPY --from=builder /opt/wheels /opt/wheels
 
 ARG PYTORCH_VERSION=2.5.1
 ARG MACE_VERSION=0.3.14
+
+# Disable pip install in user folder
+RUN pip config set install.user false
 
 # Install Python packages + wheels
 RUN pip install --no-cache-dir \
@@ -238,7 +239,7 @@ RUN chmod -R a+rx /opt/configs /usr/local/bin/before-notebook.d/
 
 RUN chown -R ${NB_USER}:users /home/${NB_USER}
 
-# Disable pip install in user folder
-RUN pip config set install.user false
+# Enable back pip install in user folder
+RUN pip config set install.user true
 
 USER ${NB_USER}
