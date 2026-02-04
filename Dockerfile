@@ -85,29 +85,30 @@ RUN export CXXFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0 ${CXXFLAGS}" \
     cmake ../cmake \
     -D CMAKE_BUILD_TYPE=Release \
     -D CMAKE_INSTALL_PREFIX=/opt/lammps \
-    -D BUILD_MPI=ON \
-    -D BUILD_OMP=ON \
-    -D BUILD_SHARED_LIBS=ON \
     -D CMAKE_C_STANDARD=11 \
     -D CMAKE_CXX_STANDARD=17 \
     -D CMAKE_CXX_FLAGS="${CXXFLAGS}" \
     -D CMAKE_SHARED_LINKER_FLAGS="-L/usr/local/lib -Wl,-rpath,/usr/local/lib" \
     -D CMAKE_EXE_LINKER_FLAGS="-L/usr/local/lib -Wl,-rpath,/usr/local/lib" \
+    -D CMAKE_PREFIX_PATH="/usr/local;/opt/conda;$(python -c 'import torch.utils; print(torch.utils.cmake_prefix_path)')" \
+    -D MKL_INCLUDE_DIR="" \
+    -D BUILD_MPI=ON \
+    -D BUILD_OMP=ON \
+    -D BUILD_SHARED_LIBS=ON \
+    -D PKG_BODY=ON \
+    -D PKG_EXTRA-FIX=ON \
+    -D PKG_KSPACE=ON \
+    -D PKG_MANYBODY=ON \
     -D PKG_ML-MACE=ON \
     -D PKG_ML-PACE=ON \
-    -D PKG_MANYBODY=ON \
-    -D PKG_BODY=ON \
-    -D PKG_MOLECULE=ON \
-    -D PKG_PLUMED=ON \
-    -D DOWNLOAD_PLUMED=ON \
-    -D PLUMED_MODE=static \
     -D PKG_ML-QUIP=OFF \
-    -D DOWNLOAD_QUIP=OFF \
+    -D PKG_MOLECULE=ON \
     -D PKG_OPT=ON \
-    -D PKG_KSPACE=ON \
+    -D PKG_PLUMED=ON \
     -D PKG_RIGID=ON \
-    -D PKG_EXTRA-FIX=ON \
-    -D CMAKE_PREFIX_PATH="/usr/local;/opt/conda;$(python -c 'import torch.utils; print(torch.utils.cmake_prefix_path)')" \
+    -D DOWNLOAD_PLUMED=ON \
+    -D DOWNLOAD_QUIP=OFF \
+    -D PLUMED_MODE=static \
     && cmake --build . -j"$(nproc)" && cmake --install . && \
     cd /opt/lammps && \
     python python/install.py \
