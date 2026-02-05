@@ -1,0 +1,8 @@
+append_text: ''
+computer: localhost
+default_calc_job_plugin: bader.bader
+description: ''
+filepath_executable: /usr/local/bin/bader
+label: bader
+prepend_text: ''
+use_double_quotes: 'False'

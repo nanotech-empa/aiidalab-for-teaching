@@ -11,6 +11,8 @@ ARG PYTORCH_VERSION=2.5.1
 ARG MACE_VERSION=0.3.14
 ARG LAMMPS_REPO=https://github.com/empa-scientific-it/lammps.git
 ARG LAMMPS_BRANCH=mace-features
+ARG TARGETARCH # passed by buildx
+
 
 # Build dependencies
 RUN apt-get update -y && \
@@ -152,6 +154,20 @@ RUN cd /opt && \
     pip wheel . --no-deps -w /opt/wheels -v
 
 
+# Build wannier90 for all arches, and build bader from source ONLY on arm64
+RUN set -ex; \
+    apt-get update && apt-get install -y --no-install-recommends \
+    gfortran libblas-dev liblapack-dev liblapack3 openmpi-bin; \
+    git clone --depth=1 https://github.com/wannier-developers/wannier90.git /tmp/wannier90; \
+    cd /tmp/wannier90; \
+    cp config/make.inc.gfort make.inc; \
+    make wannier; \
+    git clone --depth=1 https://gitlab.com/jameskermode/bader.git /tmp/bader; \
+    cd /tmp/bader; \
+    cp makefile.osx_gfortran Makefile; \
+    make; \
+    apt-get clean
+
 # ============================
 # Stage 2: Runtime
 # ============================
@@ -180,6 +196,10 @@ RUN apt-get update -y && \
 
 # Copy compiled artifacts
 COPY --from=builder /opt/lammps /opt/lammps
+
+# Copy wannier90 and bader
+COPY --from=builder /tmp/wannier90/wannier90.x /usr/local/bin/wannier90.x
+COPY --from=builder /tmp/bader/bader /usr/local/bin/bader
 
 # Custom ABI yaml-cpp
 RUN rm -f /usr/lib/x86_64-linux-gnu/libyaml-cpp.so* /usr/lib/aarch64-linux-gnu/libyaml-cpp.so* || true
