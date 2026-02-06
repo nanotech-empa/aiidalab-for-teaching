@@ -158,8 +158,31 @@ RUN cd /opt && \
 
 FROM aiidalab/full-stack:latest AS runtime
 
+# Configure HyperQueue (HQ)-related variables
+ARG HQ_VER=0.19.0
+ARG HQ_URL_AMD64="https://github.com/It4innovations/hyperqueue/releases/download/v${HQ_VER}/hq-v${HQ_VER}-linux-x64.tar.gz"
+ARG HQ_URL_ARM64="https://github.com/It4innovations/hyperqueue/releases/download/v${HQ_VER}/hq-v${HQ_VER}-linux-arm64-linux.tar.gz"
+ARG AIIDA_HQ_PKG="aiida-hyperqueue~=0.3.0"
+ARG COMPUTER_LABEL="localhost"
+# Docker sets TARGETARCH automatically (e.g. "amd64" or "arm64")
+ARG TARGETARCH
+
 USER root
 ENV DEBIAN_FRONTEND=noninteractive
+ENV COMPUTER_LABEL=$COMPUTER_LABEL
+#
+# Download and unpack the correct hq binary for the architecture:
+#
+RUN set -ex; \
+    if [ "${TARGETARCH}" = "arm64" ]; then \
+      echo "Downloading hyperqueue for ARM64..."; \
+      wget -c -O hq.tar.gz "${HQ_URL_ARM64}"; \
+    else \
+      echo "Downloading hyperqueue for x86_64..."; \
+      wget -c -O hq.tar.gz "${HQ_URL_AMD64}"; \
+    fi && \
+    tar xf hq.tar.gz -C /usr/local/bin/
+
 
 # Runtime libs (libopenblas, libjpeg9 for torchvision)
 RUN apt-get update -y && \
@@ -200,6 +223,7 @@ RUN pip install --no-cache-dir \
     pip install --no-cache-dir \
     mace-torch==${MACE_VERSION} \
     cp2k-spm-tools \
+    ${AIIDA_HQ_PKG} \
     mdtraj \
     nglview \
     optuna \
