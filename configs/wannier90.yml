@@ -1,0 +1,8 @@
+append_text: ''
+computer: localhost
+default_calc_job_plugin: wannier90.wannier90
+description: ''
+filepath_executable: /usr/local/bin/wannier90.x
+label: wannier90
+prepend_text: ''
+use_double_quotes: 'False'
