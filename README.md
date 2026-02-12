@@ -146,3 +146,126 @@ Also, you should remove the volume that contains all your data.
 ```bash
 docker volume rm aiidalab_teaching_home
 ```
+Perfect — here is the clean English version, ready to copy & paste.
+
+---
+
+# Procedure to Create a Multi-Architecture `:main` Image (amd64 + arm64)
+
+## Scenario
+
+* GitHub Actions automatically builds and pushes:
+
+  ```
+  ghcr.io/nanotech-empa/aiidalab-for-teaching:main
+  ```
+
+  → **amd64 only**
+
+* arm64 is built locally on an Apple Silicon Mac.
+
+* Then both images are merged into a proper multi-architecture manifest.
+
+---
+
+# 1️⃣ Login to GHCR (only once)
+
+```bash
+docker login ghcr.io
+```
+
+Enter:
+
+* **Username** → your GitHub username
+* **Password** → your Personal Access Token (must include `write:packages` and `read:packages`)
+
+If you see:
+
+```
+Login Succeeded
+```
+
+authentication is correct.
+
+---
+
+# 2️⃣ Wait for GitHub Build to Finish
+
+Wait until GitHub Actions has finished building and pushing:
+
+```
+:main   (amd64)
+```
+
+Do not proceed before it completes.
+
+---
+
+# 3️⃣ Build and Push arm64 from Your Mac
+
+From the root of the repository:
+
+```bash
+docker buildx build \
+  --platform linux/arm64 \
+  -t ghcr.io/nanotech-empa/aiidalab-for-teaching:main-arm64 \
+  --push .
+```
+
+This creates and publishes:
+
+```
+:main-arm64
+```
+
+---
+
+# 4️⃣ Create the Multi-Arch Manifest
+
+Once both images exist:
+
+* `:main` (amd64)
+* `:main-arm64` (arm64)
+
+Run:
+
+```bash
+docker buildx imagetools create \
+  -t ghcr.io/nanotech-empa/aiidalab-for-teaching:main \
+  ghcr.io/nanotech-empa/aiidalab-for-teaching:main \
+  ghcr.io/nanotech-empa/aiidalab-for-teaching:main-arm64
+```
+
+This replaces `:main` with a proper multi-architecture manifest.
+
+---
+
+# 5️⃣ Final Verification
+
+```bash
+docker buildx imagetools inspect ghcr.io/nanotech-empa/aiidalab-for-teaching:main
+```
+
+You must see:
+
+```
+Platform: linux/amd64
+Platform: linux/arm64
+```
+
+If both platforms are listed, the image is correctly multi-architecture.
+
+---
+
+# 🔁 Repeat After Every Push to `main`
+
+Each time you push to `main`:
+
+1. Wait for GitHub to finish (amd64 build)
+2. Build and push `:main-arm64`
+3. Recreate the manifest with `imagetools create`
+4. Verify
+
+---
+
+This approach keeps the GitHub workflow unchanged and avoids QEMU-based arm64 builds.
