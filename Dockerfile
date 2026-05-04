@@ -9,6 +9,7 @@ USER root
 
 ARG PYTORCH_VERSION=2.5.1
 ARG MACE_VERSION=0.3.14
+ARG DEEPMD_VERSION=3.0.2
 ARG LAMMPS_REPO=https://github.com/empa-scientific-it/lammps.git
 ARG LAMMPS_BRANCH=mace-features
 ARG TARGETARCH # passed by buildx
@@ -69,6 +70,26 @@ RUN cd /opt && \
     make -j$(nproc) && \
     make install
 
+# DeePMD-kit: Python package + C++ backend (PyTorch backend, no TF needed)
+# Install without [torch] extra to avoid overriding the pinned torch version already installed
+ENV DEEPMD_INSTALL_DIR=/opt/deepmd-install
+RUN pip install --no-cache-dir "deepmd-kit==${DEEPMD_VERSION}"
+RUN cd /opt && \
+    git clone --depth 1 --branch v${DEEPMD_VERSION} \
+        https://github.com/deepmodeling/deepmd-kit.git deepmd-kit && \
+    mkdir -p /opt/deepmd-kit/source/build && \
+    cd /opt/deepmd-kit/source/build && \
+    TORCH_LIBS=$(python3 -c 'import torch,os; sp=os.path.dirname(os.path.dirname(torch.__file__)); print(os.path.join(sp,"torch.libs"))') && \
+    cmake \
+        -DENABLE_PYTORCH=ON \
+        -DCMAKE_CXX_FLAGS="-D_GLIBCXX_USE_CXX11_ABI=0" \
+        -DCMAKE_PREFIX_PATH="/usr/local;/opt/conda;$(python3 -c 'import torch.utils; print(torch.utils.cmake_prefix_path)')" \
+        -DCMAKE_INSTALL_PREFIX=${DEEPMD_INSTALL_DIR} \
+        -DCMAKE_EXE_LINKER_FLAGS="-Wl,-rpath,${TORCH_LIBS} -Wl,-rpath-link,${TORCH_LIBS}" \
+        .. && \
+    make -j2 && \
+    make install
+
 # LAMMPS: clone custom branch
 RUN cd /opt && \
     git clone --depth 1 --branch ${LAMMPS_BRANCH} ${LAMMPS_REPO} lammps
@@ -92,7 +113,7 @@ RUN export CXXFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0 ${CXXFLAGS}" \
     -D CMAKE_CXX_FLAGS="${CXXFLAGS}" \
     -D CMAKE_SHARED_LINKER_FLAGS="-L/usr/local/lib -Wl,-rpath,/usr/local/lib" \
     -D CMAKE_EXE_LINKER_FLAGS="-L/usr/local/lib -Wl,-rpath,/usr/local/lib" \
-    -D CMAKE_PREFIX_PATH="/usr/local;/opt/conda;$(python -c 'import torch.utils; print(torch.utils.cmake_prefix_path)')" \
+    -D CMAKE_PREFIX_PATH="/usr/local;/opt/conda;${DEEPMD_INSTALL_DIR};$(python -c 'import torch.utils; print(torch.utils.cmake_prefix_path)')" \
     -D MKL_INCLUDE_DIR="" \
     -D BUILD_MPI=ON \
     -D BUILD_OMP=ON \
@@ -101,6 +122,7 @@ RUN export CXXFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0 ${CXXFLAGS}" \
     -D PKG_EXTRA-FIX=ON \
     -D PKG_KSPACE=ON \
     -D PKG_MANYBODY=ON \
+    -D PKG_ML-DEEPMD=ON \
     -D PKG_ML-MACE=ON \
     -D PKG_ML-PACE=ON \
     -D PKG_ML-QUIP=OFF \
@@ -204,7 +226,6 @@ RUN set -ex; \
 RUN apt-get update -y && \
     apt-get install -y --no-install-recommends \
     ca-certificates \
-    cp2k \
     openmpi-bin \
     libopenmpi3 \
     libgsl27 \
@@ -212,13 +233,15 @@ RUN apt-get update -y && \
     libblas3 \
     liblapack3 \
     libgfortran5 \
-    libopenblas-base \
+    libopenblas0 \
     libjpeg9 \
     libgomp1 \
+    && if [ "${TARGETARCH}" != "arm64" ]; then apt-get install -y --no-install-recommends cp2k; fi \
     && apt-get clean -y && rm -rf /var/lib/apt/lists/*
 
 # Copy compiled artifacts
 COPY --from=builder /opt/lammps /opt/lammps
+COPY --from=builder /opt/deepmd-install /opt/deepmd-install
 
 # Copy wannier90 and bader
 COPY --from=builder /tmp/wannier90/wannier90.x /usr/local/bin/wannier90.x
@@ -232,6 +255,9 @@ COPY --from=builder /opt/wheels /opt/wheels
 
 ARG PYTORCH_VERSION=2.5.1
 ARG MACE_VERSION=0.3.14
+ARG DEEPMD_VERSION=3.0.2
+
+ENV DEEPMD_INSTALL_DIR=/opt/deepmd-install
 
 # Disable pip install in user folder
 RUN pip config set install.user false
@@ -242,6 +268,7 @@ RUN pip install --no-cache-dir \
     torch==${PYTORCH_VERSION} torchvision torchaudio && \
     pip install --no-cache-dir \
     mace-torch==${MACE_VERSION} \
+    "deepmd-kit==${DEEPMD_VERSION}" \
     cp2k-spm-tools \
     ${AIIDA_HQ_PKG} \
     mdtraj \
@@ -264,10 +291,11 @@ RUN pip install --no-cache-dir \
 # Dynamic linker config (critical for torch libs)
 RUN TORCH_LIB_DIR=$(python3 -c "import torch; import os; print(os.path.join(os.path.dirname(torch.__file__), 'lib'))") && \
     if [ ! -d "$TORCH_LIB_DIR" ]; then echo "FATAL: Torch lib dir not found at $TORCH_LIB_DIR"; exit 1; fi && \
-    printf "%s\n%s\n%s\n%s\n%s\n" \
+    printf "%s\n%s\n%s\n%s\n%s\n%s\n" \
     "/usr/local/lib" \
     "$TORCH_LIB_DIR" \
     "/opt/lammps/lib" \
+    "/opt/deepmd-install/lib" \
     "/usr/lib/aarch64-linux-gnu" \
     "/usr/lib/x86_64-linux-gnu" \
     > /etc/ld.so.conf.d/aiidalab-libs.conf && \
