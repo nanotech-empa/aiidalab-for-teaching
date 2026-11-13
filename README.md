@@ -269,3 +269,26 @@ Each time you push to `main`:
 ---
 
 This approach keeps the GitHub workflow unchanged and avoids QEMU-based arm64 builds.
+
+## Software attribution and scientific acknowledgements
+
+Please credit [aiidalab-for-teaching](https://github.com/nanotech-empa/aiidalab-for-teaching) and its
+[contributors](https://github.com/nanotech-empa/aiidalab-for-teaching/graphs/contributors),
+and identify the release or immutable commit used. Existing author,
+contributor and funding acknowledgements remain authoritative.
+
+Preserve the copyright and permission notices in [LICENSE](LICENSE)
+when copying or distributing copies or substantial portions of MIT-licensed
+code. Separately licensed components retain their own notices. A name or
+repository link does not replace the applicable licence notices.
+
+For research carried out using this environment or the resulting workflows,
+acknowledge [AiiDA](https://github.com/nanotech-empa/.github/blob/main/CITATION_GUIDANCE.md#aiida) and [AiiDAlab](https://github.com/nanotech-empa/.github/blob/main/CITATION_GUIDANCE.md#aiidalab)
+when each platform was actually used, following their respective citation
+guidance. Cite the scientific software and methods actually used as well.
+
+Credit this teaching environment separately from the AiiDAlab distribution, included apps, teaching material and calculation codes actually used.
+
+The [shared credit guide](https://github.com/nanotech-empa/.github/blob/main/CITATION_GUIDANCE.md) keeps software attribution, licence
+compliance and scientific citation requests separate. Scientific citation
+requests are not additional MIT licence conditions.
